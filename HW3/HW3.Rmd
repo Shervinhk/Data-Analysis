@@ -1,0 +1,417 @@
+---
+title: "HW3"
+author: "Shervin Hakimi"
+date: "2/28/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Shervin Hakimi (93111399)
+
+##Question 1:
+
+```{r }
+
+library(engsoccerdata)
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+                                       
+
+#----------------------------------------------------------
+spain %>%  filter(round=="league",tier==1) %>% select(1:8) -> PremierLeague
+rbind(
+  PremierLeague %>% 
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>% 
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>%  mutate( GD = GF-GA ) %>% 
+  group_by( Season,team ) %>% 
+  summarize( GP = n(),
+            goalsF = sum(GF),
+            goalsA = sum(GA),
+            goaldif = sum(GD),
+            W = sum(GD>0),
+            D = sum(GD==0),
+            L = sum(GD<0),
+     ) %>% 
+  mutate(score = W*3 + D ) %>% 
+  mutate( rank = rank(-score) %>%  as.integer() ) %>% 
+  arrange(rank, goaldif) -> ltable
+  View(ltable)
+
+  ltable %>% group_by(team) ->check 
+  View(check)
+  
+  
+# We use the old law for the ranking:
+ltable %>% group_by(team) %>% summarise(number.of.championship = sum(rank==1)) %>% arrange(desc(number.of.championship)) -> table1
+View(table1)
+p = ggplot(data = table1, aes(x = team , y = number.of.championship )) + geom_bar(stat="identity") + 
+      labs(x="Team", y="Number Of Champioships")+ggtitle("Number of Championships vs Teams")
+p
+q = hchart( table1, type = "column" , hcaes(x = team , y = number.of.championship))
+q
+#----------------------------------------------------------
+
+
+```
+
+## Question 2:
+```{r pressure}
+#HW3 -q2
+#----------------------------------------------------------
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+#----------------------------------------------------------
+# We will first find the most boring Sessons:
+data("spain")
+
+spain -> PremierLeague
+#rbind two copies of the orignal df, simply reversing home/away team for each match
+rbind(
+  PremierLeague %>%
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>%
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>% mutate(GD = GF-GA) %>% 
+  group_by(Season, team) %>% 
+  summarize(GP = n(),
+            goalsF = sum(GF),
+            goalsA = sum(GA),
+            goaldif = sum(GD),
+            W = sum(GD>0),
+            D = sum(GD==0),
+            L = sum(GD<0)
+  ) %>% 
+  mutate(score = W*3 + D) %>%
+  mutate(rank = rank(-score) %>% as.integer()) %>%
+  arrange(rank) -> ltable
+
+
+
+spain %>% group_by(Season) %>% summarise(Goals = sum(hgoal + vgoal) )%>% arrange((Goals)) -> new.spain
+View(new.spain)
+
+
+Year.min.Goals = new.spain$Season[ which.min(new.spain$Goals) ]
+Year.min.Goals
+
+p = ggplot(data = new.spain[1:10,] , aes( x = Season , y = Goals )) +geom_bar(stat="identity")+labs(x="Season", y="Number of Goals ")+ggtitle("Number of Goals of most boring vs Season")
+p
+
+
+q = hchart( new.spain[1:10,], type = "column" , hcaes(x = Season , y = Goals))
+q
+#----------------------------------------------------------
+# Now we will find the most boring teams:
+
+ltable %>% group_by(team) %>% summarise( team.goals = sum(goalsF)) %>% arrange(team.goals) -> team.total.goals
+View(team.total.goals)
+
+p = ggplot(data = team.total.goals[1:10,] , aes( x = team , y = team.goals )) +geom_bar(stat="identity")+xlab("Team names") +ylab("Number of Goals") + ggtitle("Number of goals of the most boring teams") 
+p
+q = hchart( team.total.goals[1:10,], type = "column" , hcaes(x = team , y = team.goals))
+q
+#----------------------------------------------------------
+```
+##Question 3:
+```{r}
+#HW3-Q3:
+
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+spain -> PremierLeague
+rbind(
+  PremierLeague %>% 
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>% 
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>%  mutate( GD = GF-GA , w = GD>0 , d = GD ==0) -> check
+  check %>%   mutate(score =3*w + d) %>% 
+  group_by(Season,team) %>%  
+  mutate(cummulative = cumsum(score) , n = 1:length(cummulative)) %>% 
+  summarise( halftime = cummulative[max(n)/2] , fulltime = cummulative[max(n)]) %>% 
+  group_by(Season) %>% 
+  summarise( half.champion = team[which.max(halftime)], champion = team[which.max(fulltime)] ) -> check
+  H = sum(check$half.champion == check$champion)/nrow(check)
+  H
+
+```
+##Question 4:
+We considered the four best teams: "Real Madrid" , "FC Barcelona" , "Valencia CF","Sevilla FC"
+```{r}
+#HW3-q4:
+
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+data("spain")
+
+spain -> PremierLeague
+#rbind two copies of the orignal df, simply reversing home/away team for each match
+rbind(
+  PremierLeague %>%
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>%
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>% mutate(GD = GF-GA)  -> ltable
+  ltable %>% filter( Season == 2000:2011, team %in% c("Real Madrid" , "FC Barcelona" , "Valencia CF","Sevilla FC"), !opp%in%c("Real Madrid" , "FC Barcelona" , "Valencia CF","Sevilla FC") ) %>% 
+  mutate(L = (GD<0)) %>% group_by(team,opp) %>% filter(n()>4) %>% 
+  summarise(Loss = sum(L)/length(L)) %>% group_by(team) %>%  
+  summarise(Black =opp[which.max(Loss)] , Losss = Loss[which.max(Loss)]) ->check2
+  View(check2)
+  
+  
+  
+  
+
+```
+```{r, eval=FALSE}
+
+team        Black               Losss
+1 Real Madrid Deportivo La Coruna 0.1428571
+```
+
+
+
+
+#Question 5:
+
+```{r}
+
+
+#HW3-Q5:
+
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+
+spain -> PremierLeague
+#rbind two copies of the orignal df, simply reversing home/away team for each match
+rbind(
+  PremierLeague %>%
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>%
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>% mutate(GD = GF-GA) ->check1
+check1 %>% 
+  group_by(Season, team) %>% 
+  summarize(GP = n(),
+            goalsF = sum(GF),
+            goalsA = sum(GA),
+            goaldif = sum(GD),
+            W = sum(GD>0),
+            D = sum(GD==0),
+            L = sum(GD<0)
+  ) %>% 
+  mutate(score = W*3 + D) %>%
+  mutate(rank = rank(-score) %>% as.integer()) %>%
+  arrange(rank) -> ltable 
+  ltable %>%  arrange(Season , -score) %>% group_by(Season) %>% 
+  summarise( champion = team[which.max(score)] , S = max(score)) %>% filter(S == max(S)) -> H
+  H
+  
+  q = hchart( H, type = "column" , hcaes(x = champion , y = Season))
+  q
+  
+
+  
+```
+
+##Question 6:
+```{r}
+#HW3 - q6:
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+
+spain -> PremierLeague
+#rbind two copies of the orignal df, simply reversing home/away team for each match
+rbind(
+  PremierLeague %>%
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>%
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>% mutate(GD = GF-GA) ->check1
+check1 %>% 
+  group_by(Season, team) %>% 
+  summarize(GP = n(),
+            goalsF = sum(GF),
+            goalsA = sum(GA),
+            goaldif = sum(GD),
+            W = sum(GD>0),
+            D = sum(GD==0),
+            L = sum(GD<0)
+  ) %>% 
+  mutate(score = W*3 + D) %>%
+  mutate(rank = rank(-score) %>% as.integer()) %>%
+  arrange(rank) -> ltable 
+  check1 %>% mutate( loss = (GD > 0) %>% as.double() - (GD < 0) %>% as.double()) %>%
+  group_by(team) %>% 
+  do(data.frame(rle(.$loss)[1],rle(.$loss)[2])) %>% filter(values == -1) %>%  group_by(team) %>% 
+  summarise(Loss = max(lengths)) %>% filter(Loss == max(Loss)) -> check2.loss
+
+  check1 %>% mutate( loss = (GD > 0) %>% as.double() - (GD < 0) %>% as.double()) %>%
+    group_by(team) %>% 
+    do(data.frame(rle(.$loss)[1],rle(.$loss)[2])) %>% filter(values == 1) %>%  group_by(team) %>% 
+    summarise(Loss = max(lengths)) %>% filter(Loss == max(Loss)) -> check2.win
+  
+  check1 %>% mutate( loss = (GD > 0) %>% as.double() - (GD < 0) %>% as.double()) %>%
+    group_by(team) %>% 
+    do(data.frame(rle(.$loss)[1],rle(.$loss)[2])) %>% filter(values == 0) %>%  group_by(team) %>% 
+    summarise(Loss = max(lengths)) %>% filter(Loss == max(Loss)) -> check2.tie
+
+
+
+
+
+```
+
+
+
+```{r, eval= FALSE}
+check2.tie:
+ team         Loss
+  <chr>       <dbl>
+1 Hercules CF  8.00
+
+check2.win:
+  team          Loss
+  <chr>        <dbl>
+1 FC Barcelona  39.0
+
+check2.loss:
+team         Loss
+  <chr>       <dbl>
+1 Hercules CF  25.0
+```
+
+
+
+
+##Question 7:
+```{r}
+#HW3-q7:
+
+
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+spain -> PremierLeague
+rbind(
+  PremierLeague %>% 
+    select(Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>% 
+    select(Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>%  mutate( GD = GF-GA, w = (GD > 0), d = (GD == 0) )-> check
+  
+    check %>% mutate( score = 3*w + d ) %>% group_by(Season,team) %>%
+    mutate(cummulative = cumsum(score) , n = 1:length(cummulative)) %>%
+    group_by(Season) %>% mutate(numbergames = max(n)) %>% 
+    group_by(Season,n,numbergames) %>% group_by(Season,n,numbergames) %>%
+    summarise( points1  = cummulative[2] , points2 = cummulative[1] , team = team[which.min(cummulative)]) %>% 
+    mutate(g = 3*(numbergames - n) - ( points1 - points2)) %>% filter(g < 0) %>% 
+    group_by(Season) %>% top_n(1, g) %>% mutate(weeks = numbergames - n) %>% filter(weeks == (max(.$weeks)-2)) %>% 
+    select(Season , team , weeks) -> check3
+ 
+
+```
+
+
+
+```{r, eval=FALSE}
+Season team         weeks
+   <dbl> <chr>        <dbl>
+1   1981 CD Castellon  5.00
+```
+
+##Question 8:
+```{r }
+#HW3-q8:
+
+
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+spain -> PremierLeague
+rbind(
+  PremierLeague %>% 
+    select(Date,Season, team = home, opp = visitor, GF = hgoal, GA = vgoal),
+  PremierLeague %>% 
+    select(Date,Season, team = visitor, opp = home, GF = vgoal, GA = hgoal)
+) %>%  mutate( GD = GF-GA, w = (GD > 0), d = (GD == 0) )-> check
+
+check %>%  filter(Season == 1998) %>%   mutate( score = 3*w + d) %>% 
+  group_by(team) %>%mutate(cummulative = cumsum(score), Gds = cumsum(GD) , n = 1:length(cummulative)) %>% group_by(n) %>% 
+  arrange(-cummulative , -Gds) %>% group_by(n) %>% mutate(rank = 1:n()) %>% 
+  select(Date,team,rank,n) %>% group_by(team) %>% arrange(n) -> check2
+check2 %>% group_by(team) %>%  hchart(type="line", hcaes(x = Date, y = rank, group= team ))
+
+
+
+```
+
+
+## Question 9:
+
+```{r}
+# HW3-q9:
+library(engsoccerdata)
+
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+library(devtools)
+
+data("spain")
+
+spain %>% filter(Season == 2012) %>% mutate(Sum = hgoal+vgoal ) -> temp
+p <- ggplot(data = temp, aes(x = home, y = visitor, label = FT ))
+p + geom_label(label.padding = unit(0.1, "lines"),check_overlap = T, label.size = 0.1) 
+
+
+```
+
