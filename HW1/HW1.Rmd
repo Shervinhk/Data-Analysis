@@ -1,0 +1,483 @@
+---
+title: "HW1"
+author: "Shervin Hakimi"
+date: "2/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Question 1: 
+In this Question we will be using the "magic" package. from this package by using the "magichypercube.n4" function we can find the desired results. 
+
+```
+# first we will install the magic package:
+install.packages("magic")
+# Now we will use this package:
+library("magic")
+#---------------------------------
+# 4dimensional:
+magichypercube.4n(1,d=4)
+
+# 5dimensional:
+magichypercube.4n(1,d=5)
+
+# 6dimensional:
+magichypercube.4n(1,d=6)
+#---------------------------------
+```
+as an example, our results for four dimensional are as follows:
+
+
+```
+> magichypercube.4n(1,d=4)
+, , 1, 1
+
+     [,1] [,2] [,3] [,4]
+[1,]    1  252  248   13
+[2,]  255    6   10  243
+[3,]  254    7   11  242
+[4,]    4  249  245   16
+
+, , 2, 1
+
+     [,1] [,2] [,3] [,4]
+[1,]  240   21   25  228
+[2,]   18  235  231   30
+[3,]   19  234  230   31
+[4,]  237   24   28  225
+
+, , 3, 1
+
+     [,1] [,2] [,3] [,4]
+[1,]  224   37   41  212
+[2,]   34  219  215   46
+[3,]   35  218  214   47
+[4,]  221   40   44  209
+
+, , 4, 1
+
+     [,1] [,2] [,3] [,4]
+[1,]   49  204  200   61
+[2,]  207   54   58  195
+[3,]  206   55   59  194
+[4,]   52  201  197   64
+
+, , 1, 2
+
+     [,1] [,2] [,3] [,4]
+[1,]  192   69   73  180
+[2,]   66  187  183   78
+[3,]   67  186  182   79
+[4,]  189   72   76  177
+
+, , 2, 2
+
+     [,1] [,2] [,3] [,4]
+[1,]   81  172  168   93
+[2,]  175   86   90  163
+[3,]  174   87   91  162
+[4,]   84  169  165   96
+
+, , 3, 2
+
+     [,1] [,2] [,3] [,4]
+[1,]   97  156  152  109
+[2,]  159  102  106  147
+[3,]  158  103  107  146
+[4,]  100  153  149  112
+
+, , 4, 2
+
+     [,1] [,2] [,3] [,4]
+[1,]  144  117  121  132
+[2,]  114  139  135  126
+[3,]  115  138  134  127
+[4,]  141  120  124  129
+
+, , 1, 3
+
+     [,1] [,2] [,3] [,4]
+[1,]  128  133  137  116
+[2,]  130  123  119  142
+[3,]  131  122  118  143
+[4,]  125  136  140  113
+
+, , 2, 3
+
+     [,1] [,2] [,3] [,4]
+[1,]  145  108  104  157
+[2,]  111  150  154   99
+[3,]  110  151  155   98
+[4,]  148  105  101  160
+
+, , 3, 3
+
+     [,1] [,2] [,3] [,4]
+[1,]  161   92   88  173
+[2,]   95  166  170   83
+[3,]   94  167  171   82
+[4,]  164   89   85  176
+
+, , 4, 3
+
+     [,1] [,2] [,3] [,4]
+[1,]   80  181  185   68
+[2,]  178   75   71  190
+[3,]  179   74   70  191
+[4,]   77  184  188   65
+
+, , 1, 4
+
+     [,1] [,2] [,3] [,4]
+[1,]  193   60   56  205
+[2,]   63  198  202   51
+[3,]   62  199  203   50
+[4,]  196   57   53  208
+
+, , 2, 4
+
+     [,1] [,2] [,3] [,4]
+[1,]   48  213  217   36
+[2,]  210   43   39  222
+[3,]  211   42   38  223
+[4,]   45  216  220   33
+
+, , 3, 4
+
+     [,1] [,2] [,3] [,4]
+[1,]   32  229  233   20
+[2,]  226   27   23  238
+[3,]  227   26   22  239
+[4,]   29  232  236   17
+
+, , 4, 4
+
+     [,1] [,2] [,3] [,4]
+[1,]  241   12    8  253
+[2,]   15  246  250    3
+[3,]   14  247  251    2
+[4,]  244    9    5  256
+
+> 
+#---------------------------------
+```
+
+
+## Question 2:
+For this question we will first use the second condition to find the permutations which will fit the desired conditions. After that we will try to find the other positions of our numbers using the first and third conditions. We will see that there is only one answer to these conditions:
+```
+# First we will define our vectors and check the second condition:
+v <- c(1:13)
+Q = permutations(n=13,r=6,v=v,repeats.allowed = FALSE) # only checking condition 2
+G = length(Q)/6
+y = integer(G)
+
+for ( i in 1:G)
+{
+  A = Q[i,2]/(Q[i,2]+Q[i,3])
+  B = (Q[i,2]+Q[i,3])/(Q[i,3]+Q[i,4]+Q[i,5])
+  C = (Q[i,3]+Q[i,4]+Q[i,5])/(Q[i,1]+Q[i,5]+Q[i,6])
+  # Q[i,1] = a5 , Q[i,6] = a10
+  
+  if( A == B && A ==C && B==C && A<1)
+  {
+    y[i] = i
+  }
+}  
+#---------------------------------
+
+# all the i s that give our condition:
+y <- y[y!=0]
+
+# our new matrix:
+check2 = Q[y,]
+rows = nrow(check2)
+
+#---------------------------------
+
+# now we will use these to check other conditions:
+m <- c(1:13)
+H = permutations(7)
+rows2 = nrow(H)
+for(i in 1:rows)
+{
+  check = m[ !m %in%  check2[i,]]
+  for (j in 1:rows2)
+  {
+    C = c( (check[H[j,1:4]]), check2[i,] , check[H[j,5:7]] )
+    A1 = C[1]/(C[2]+C[3])
+    B1 = (C[2]+C[3])/(C[3]+C[4]+C[5])
+    
+    A3 = (C[11]+C[12])/(C[12]+C[13])
+    B3 = (C[12]+C[13])/(C[13]+C[10])
+    
+    if (A1 == B1 && A1<1 && A3 == B3 && A3<1)
+    {
+      print(C)
+      break
+    
+    }
+    
+  }
+  
+}
+#---------------------------------
+
+# Answer : [1]  6  1 11  3 10  8  4  9  5 12  7  2 13
+
+#---------------------------------
+
+```
+
+```{r, eval=FALSE}
+ Answer : [1]  6  1 11  3 10  8  4  9  5 12  7  2 13
+```
+## Question 3
+For the third question we will call each answer of every part as "Answer". for the first and the second part we will do many iterations to find one of the possible answers of these questions. Our algorithm is based on the fact that in every step we will change the state of every person if the person is not as it shows. we assigned "0" for liars and "1" for frank and honest people. we will give any answer that is correct, as it was said.
+For the third part we will check all the possibilites that we can have and see which of them works. We will report the possible number of liars in this way.
+```
+# First Condition with 16 people:
+
+
+c = integer(16)
+# 0 : liar , 1 : frank
+
+j = integer(1)
+while(1)
+{
+  check = c
+  for(i in 1:16)
+  {
+if( c[i] == 0 && c[i-1]+c[i+1] == 0 && i !=1 && i !=16 ) # if liar was frank
+{
+  c[i] = 1
+}
+  
+if ( c[i] == 0 && c[i-1]+c[i+1] > 0 && i !=1 && i !=16) # if liar was liar
+{
+  c[i] = 0
+}
+
+if (  c[i] == 1 && c[i-1]+c[i+1] == 0 && i !=1 && i !=16) # if frank was frank
+{
+  c[i] = 1
+}
+
+if(  c[i] == 1 && c[i-1]+c[i+1] > 0 && i !=1 && i !=16) # if frank was liar
+{
+  c[i] = 0
+}
+
+    if( i ==1 )
+    {
+      if( c[1] ==0 && c[16] + c[2] == 0)
+      {
+        c[1] = 1
+      }
+      if( c[1] ==0 && c[16] + c[2] > 0)
+      {
+        c[1] = 0
+      }
+      if( c[1] ==1 && c[16] + c[2] == 0)
+      {
+        c[1] = 1
+      }
+      if( c[1] ==1 && c[16] + c[2] > 0)
+      {
+        c[1] = 0
+      }
+            
+    }
+    
+    
+    if( i ==16 )
+    {
+      if( c[16] ==0 && c[15] + c[1] == 0)
+      {
+        c[16] = 1
+      }
+      if( c[16] ==0 && c[15] + c[1] > 0)
+      {
+        c[16] = 0
+      }
+      if( c[16] ==1 && c[15] + c[1] == 0)
+      {
+        c[16] = 1
+      }
+      if( c[16] ==1 && c[15] + c[1] > 0)
+      {
+        c[16] = 0
+      }
+      
+    }
+    
+    
+  }
+  if(c-check || 0)
+  {
+    Answer1 = c
+    frank = sum(Answer1)
+    break
+  }
+}
+```
+```{r, eval=FALSE}
+Answer1 =  [1] 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0
+frank = 8
+```
+
+```
+check = integer(12)
+c = integer(12)
+j = integer(1)
+
+while(j<10000)
+{
+  check = c
+  for(i in 1:12)
+  {
+    if( c[i] == 0 && c[i-1]+c[i+1]  == 1 && i !=1 && i !=12 ) # if liar was frank
+    {
+      c[i] = 1
+    }
+    
+    if ( c[i] == 0 && (c[i-1]+c[i+1] !=1) && i !=1 && i !=12) # if liar was liar
+    {
+      c[i] = 0
+    }
+    
+    if (  c[i] == 1 && c[i-1]+c[i+1] == 1 && i !=1 && i !=12) # if frank was frank
+    {
+      c[i] = 1
+    }
+    
+    if(  c[i] == 1 && c[i-1]+c[i+1] != 1 && i !=1 && i !=12) # if frank was liar
+    {
+      c[i] = 0
+    }
+    
+    if( i ==1 )
+    {
+      if( c[1] ==0 && c[12] + c[2] == 1)
+      {
+        c[1] = 1
+      }
+      if( c[1] ==0 && c[12] + c[2] != 1)
+      {
+        c[1] = 0
+      }
+      if( c[1] ==1 && c[12] + c[2] == 1)
+      {
+        c[1] = 1
+      }
+      if( c[1] ==1 && c[12] + c[2] != 1)
+      {
+        c[1] = 0
+      }
+    }
+      
+      if( i ==12 )
+      {
+        if( c[12] ==0 && c[11] + c[1] == 1)
+        {
+          c[12] = 1
+        }
+        if( c[12] ==0 && c[11] + c[1] != 1)
+        {
+          c[12] = 0
+        }
+        if( c[12] ==1 && c[11] + c[1] == 1)
+        {
+          c[12] = 1
+        }
+        if( c[12] ==1 && c[11] + c[1] != 1)
+        {
+          c[12] = 0
+        }
+      
+    }
+    
+    
+  }
+
+  j = j+1
+}
+Answer2 = c
+frank2 = sum(Answer2)
+
+```
+```{r,eval=FALSE}
+Answer2 = [1] 0 0 0 0 0 0 0 0 0 0 0 0
+frank = 0
+```
+
+```
+liars = integer(1)
+
+for (i in 1:2^8){
+  for(k in 1:2^8){
+    if (sum(x[k,]) == 4)
+    {
+      check2 = x[k,]
+      check = x[i,]
+      add = 0
+      check3 = which(check == 1)
+      if (add == 0)
+      {
+        if (length(check3) != 0)
+        {
+          for (j in 1:length(check3))
+          {
+            number.ofcheck = ( check3[j]-2 ):check3[j]
+            
+            if (sum(check[number.ofcheck%%n+1]) == 2 & check2[check3[j]] == 1 )
+            {
+              add = add + 1
+              break
+            }
+            if (sum(check[number.ofcheck%%n+1]) == 3 & check2[check3[j]] == 0 ) {
+              add = add + 1
+              break
+            }
+          }
+        }
+      }
+      
+      check3 = which(check == 0)
+      
+      if (length(check3) != 0)
+      {
+        for (j in 1:length(check3))
+        {
+          number.ofcheck = (check3[j]-2):check3[j]
+          if (sum(check[number.ofcheck%%n+1]) != 1 & check2[check3[j]] == 1 ) 
+            
+          {
+            add = add + 1
+            break
+          }
+          if (sum(check[number.ofcheck%%n+1]) != 2 & check2[check3[j]] == 0 )
+          {
+            add = add + 1
+            break
+          }
+        }
+      }
+      
+      if (add == 0)
+      {
+        liars = c(liars,sum(check))
+        Answer3 = liars # the first answer does not count
+  }}
+```
+
+
+
+```{r, eval=FALSE}
+  Answer3 = [1] 3 3 4 4 5 4 4 5 3 3 4 4 5 3 4 4 4 4 4 5 6 4 4 4 4 5 5 6 3 3
+  -> Answer3 = [1] 3 4 5 6 
+     liars = [1] 3 4 5 6
+```
+
