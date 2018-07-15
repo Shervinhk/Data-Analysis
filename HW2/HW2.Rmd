@@ -1,0 +1,308 @@
+---
+title: "HW2"
+author: "Shervin Hakimi"
+date: "2/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(engsoccerdata)
+library(dplyr)
+library(ggplot2)
+library(highcharter)
+
+```
+## Shervin Hakimi - 93111399
+##Question 1:
+In this question we use the dplyr package besides ggplot. We will group and then sunmarise our desried listing.
+```{r  }
+# HW2 - Q1
+# First we will read our data and bring our library:
+library("ggplot2")
+library("dplyr")
+
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+# Grpouping number of devices in every company:
+
+mobile %>% group_by(company) %>% summarise(Count=n()) %>% arrange(desc(Count))  -> number
+#---------------------------------------------
+#To see the top ten:
+View(number[1:20,])
+#---------------------------------------------
+# No Will Bar Plot our reslutls
+p = ggplot(data = number[1:20,] , aes(x = company , y = Count)) 
+p +geom_bar(stat ="identity")
+#---------------------------------------------
+
+```
+
+## Question2:
+In this question we used the mean values per year. Using the dplyr package we grouped and extracted each value we needed and also plotted the desired lines.
+```{r }
+# HW2 - Q2:
+library("ggplot2")
+
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+
+mobile %>% group_by(year) %>% summarise(dim = mean(dim_breadth, na.rm =TRUE)) -> breadth
+
+#---------------------------------------------
+#For Bradth:
+
+mobile %>% group_by(year) %>% summarise(dim = mean(dim_breadth, na.rm =TRUE)) -> breadth
+
+p = ggplot(data = breadth, aes(x = year, y = dim))
+coef = coef(lm(dim ~ year, data = breadth))
+p2 = p + geom_point() + xlab("Year") + ylab("Breadth") + ggtitle("Mean Breadth vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+p2
+
+q  = ggplot(data = mobile , aes(x= year , y = dim_breadth))
+coef = coef(lm(dim_breadth ~ year, data = mobile))
+q2 =q + geom_point()+ xlab("Year") + ylab("Breadth") + ggtitle("Dimension Breadth vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+q2
+#---------------------------------------------
+# For Length: 
+
+mobile %>% group_by(year) %>% summarise(dim = mean(dim_length, na.rm =TRUE)) -> length
+
+p = ggplot(data = length, aes(x = year, y = dim))
+coef = coef(lm(dim ~ year, data = length))
+p3 = p + geom_point() + xlab("Year") + ylab("length") + ggtitle("Mean length vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+p3
+
+q  = ggplot(data = mobile , aes(x= year , y = dim_length))
+coef = coef(lm(dim_length ~ year, data = mobile))
+q3 =q + geom_point()+ xlab("Year") + ylab("length") + ggtitle("Dimension length vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+q3
+#---------------------------------------------
+# For Thickness:
+
+mobile %>% group_by(year) %>% summarise(dim = mean(dim_thickness, na.rm =TRUE)) -> thickness
+
+p = ggplot(data = thickness, aes(x = year, y = dim))
+coef = coef(lm(dim ~ year, data = thickness))
+p4 = p + geom_point() + xlab("Year") + ylab("thickness") + ggtitle("Mean thickness vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+p4
+
+q  = ggplot(data = mobile , aes(x= year , y = dim_thickness))
+coef = coef(lm(dim_thickness ~ year, data = mobile))
+q4 =q + geom_point()+ xlab("Year") + ylab("thickness") + ggtitle("Dimension thickness vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+q4
+#---------------------------------------------
+# For Camera Quality:
+
+mobile %>% group_by(year) %>% summarise(dim = mean(cam_px, na.rm =TRUE)) -> cam_px
+
+p = ggplot(data = cam_px, aes(x = year, y = dim))
+coef = coef(lm(dim ~ year, data = cam_px))
+p5 = p + geom_point() + xlab("Year") + ylab("cam_px") + ggtitle("Mean cam_px vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+p5
+
+q  = ggplot(data = mobile , aes(x= year , y = cam_px))
+coef = coef(lm(cam_px ~ year, data = mobile))
+q5 =q + geom_point()+ xlab("Year") + ylab("camera quality") + ggtitle(" camear quality vs Year") + geom_abline(intercept = coef[1],slope = coef[2])
+q5
+#---------------------------------------------
+
+```
+##Question 3:
+We will plot both the LTE and Sim numbers using fill plot.
+```{r }
+# HW2 - Q3:
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+mobile %>% group_by(sim_no,LTE) %>% summarise(price = mean(price, na.rm =TRUE)) -> mean.price
+
+# We will View the prices:
+View(mean.price)
+#---------------------------------------------
+# For number of Sim
+p = ggplot(data = mean.price, aes(x = sim_no , y =price) ) 
+p + geom_bar(stat= "identity")+xlab("Number of Sim cards")+ylab("Average Price")+ ggtitle("Bar Plot for Sim Cards")
+#---------------------------------------------
+# For having/not having LTE:
+q = ggplot(data = mean.price, aes(x = LTE , y =price) ) 
+q + geom_bar(stat= "identity")+xlab("LTE")+ylab("Average Price")+ggtitle("Bar Plot for LTE")
+#---------------------------------------------
+
+# Final plot with bot of them
+z = ggplot(data = mean.price, aes(x = sim_no , y =price) ) 
+z + geom_bar(stat= "identity",aes(fill = LTE)) + xlab(" Number of Sim Cards ")+ylab("Average Price")+ ggtitle("Bar Plot for Sim Cards and LTE")
+
+```
+
+
+
+
+##Question 4:
+As wantedm, we will use the boxplot function for this question:
+```{r }
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+# Finding the ones made in 2017:
+index = which(mobile$year==2017)
+#---------------------------------------------
+# Ploting: 
+boxplot(dim_thickness ~ audio_jack, data = mobile[index,], main = "Thickness vs Audio Jack",xlab="Audio Jack",ylab="Thickness")
+#---------------------------------------------
+
+```
+##Question 5:
+PPI is defined as pixel per inch. We will use this definition and find maximum PPI:
+```{r }
+# HW2 - Q5:
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+# First we define PPI =: (Size of pixel)/(Size of display):
+
+PPI = (mobile$px_row^2 + mobile$px_col^2)^(1/2)/mobile$display_size
+#---------------------------------------------
+# Histogram of PPI:
+hist(PPI)
+
+#---------------------------------------------
+# Finding Average PPI per Year:
+mobile %>% group_by(year) %>% summarise(avePPI = mean((px_row^2+px_col^2)^(1/2)/display_size,na.rm = TRUE)) -> PPI.average
+
+PPI.plot = ggplot(data = PPI.average , aes(x=year, y= PPI.average$avePPI))
+
+PPI.plot + geom_point()+ ylab("Average PPI")+ggtitle("Average PPI per Year")
+#---------------------------------------------
+# Device with Maximum PPI:
+
+PPI.max = mobile$device[which.max(PPI)]
+PPI.max 
+#---------------------------------------------
+
+```
+##Question 6: 
+We define "Gooshkoob" as a device which has a low pixel resoloution and a high thickness. We find the top ones who have this chrectarsitic.
+```{r }
+# HW2 - Q6:
+# 
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+# We will first group by device and arrange it by thickness/(pixel size of lc)
+mobile %>% group_by(device) %>% summarise(thick = mean(dim_thickness/(px_row*px_col),na.rm=TRUE)) %>% arrange(thick) -> thick.mobile
+#---------------------------------------------
+
+# Removing the NANs:
+thick.mobile = na.omit(thick.mobile)
+#---------------------------------------------
+
+# Finding the first 10 most "Gooshkoob" devices:
+n = nrow(thick.mobile)
+Thickest = thick.mobile[n:(n-9),]
+View(Thickest)
+#---------------------------------------------
+
+# If we want to plot the first ten most "Gooshkoob" devices we have:
+p = ggplot(data = Thickest  , aes(x = Thickest$device , y = Thickest$thick))
+p + geom_point()
+
+#---------------------------------------------
+# If we want all the "Gooshkoob"ness of all the devices:(put this out of comment to see)
+#w = ggplot(data = thick.mobile  , aes(x = thick.mobile$device , y = thick.mobile$thick))
+#w + geom_point()
+
+```
+##Question 7: 
+We use the definition of density and find the ones which will not sink.
+```{r }
+# HW2 - Q7:
+# 
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+# Finding the density:
+
+density = mobile$weight/(mobile$dim_length*10^-1*mobile$dim_breadth*10^-1*mobile$dim_thickness*10^-1)
+#---------------------------------------------
+
+
+# Finding dose whuch are dense:
+Dense = mobile$device[ which (density>1) ]
+View(Dense)
+#---------------------------------------------
+
+# Plotting the dense one:
+p = ggplot( data = mobile, aes(x= device,y = mobile$weight/(mobile$dim_length*mobile$dim_breadth*mobile$dim_thickness)))
+
+p + geom_point() + geom_hline(yintercept = 1)+ xlab("device name")+ylab("density")+ggtitle("density of devices")
+
+#---------------------------------------------
+
+
+```
+##Question 8:
+Using ggplot we plot the desired plot.
+```{r }
+# HW2 - Q8:
+# 
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+
+p = ggplot( data = mobile, aes(x= battery_mah , y=weight )) 
+p + geom_point()
+
+
+cor(mobile$battery_mah,mobile$weight, use = "pairwise.complete.obs")
+
+
+```
+##Question 9:
+We will find the most expensive devices of Samsung.
+```{r }
+# HW2 - Q9:
+# 
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+Samsung = mobile[mobile$company=="Samsung",]
+Samsung %>% group_by(year) %>% summarise(check.price = max(price, na.rm = T)) -> maximum.price
+
+View(maximum.price)
+
+p = ggplot(data = maximum.price, aes(x = year , y = check.price))
+p + geom_point() +xlab("Year")+ylab("Maximum Prices of Samsung devices") + ggtitle("Maximum prices of Samsung devices vs year")
+
+
+```
+
+## Question 10:
+Three plot: First is mean weight vs time to see how the weight changed during these years and the empahsis of the manufacturers on this feature. 
+Second is camera quality vs time to see how much it changed during these years. Its interesting cause it seeems that the manufacturer give more and more value to this feature
+Third is the battery life vs weight plot, to see how the battery life can affect the weight.
+
+```{r }
+# HW2 - Q10:
+# 
+library(dplyr)
+mobile = read.csv("/Users/shervin/Downloads/mobile_data.csv")
+
+mobile %>% group_by(year) %>% summarise(mean.weight = mean(weight, na.rm =T)) -> Weight
+
+p = ggplot( data = Weight, aes(x = year , y = mean.weight))
+p + geom_point()+ xlab("year") +ylab("Weight")
+
+
+mobile %>% group_by(year) %>% summarise(mean.cam = mean(cam_px,na.rm = T))-> Cam
+
+p = ggplot( data = Cam, aes(x = year , y = mean.cam))
+p + geom_point()+ xlab("year") +ylab("Camera Quality")
+
+
+
+mobile %>% group_by(weight) %>% summarise(mean.battery = mean(battery_mah,na.rm = T))-> Battery
+
+p = ggplot( data = Battery, aes(x = weight , y = mean.battery))
+p + geom_point()+ xlab("Weight") +ylab("Battery Life")
+```
+
+
