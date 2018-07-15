@@ -1,0 +1,389 @@
+---
+title: "HW10 - Data Analysis"
+subtitle: "WDI"
+author: "93111399"
+date: "`r Sys.time()`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+# Qestion 1:
+We will first install the necessary package and include the libraries:  
+
+```{r message=FALSE, warning=FALSE}
+#First we will install the package:
+#install.packages("WDI")
+
+#-----------------------------
+# Our Necessary Libraries:
+library("WDI")
+library("dplyr")
+library("ggplot2")
+library("highcharter")
+library("ggthemes")
+library("cluster")
+library("fpc")
+
+```
+
+Now we will use ``WDI`` data to find the poorest countries. We will consider year 2010 because it hase the most data the main indicator is ``SI.POV.GAPS``.
+
+```{r message=TRUE, warning=FALSE}
+#-----------------------------
+#Important Indicators:
+data = WDI(indicator = c("NY.GDP.PCAP.PP.CD",
+                             "SI.POV.GAPS",
+                             "SP.DYN.LE00.IN"),extra = TRUE,
+               start = 1960, end = 2018)
+data_check <- subset(data, region != "Aggregates")
+
+#-----------------------------
+#We will use the year with the most data. which is 2010
+data_check %>% filter(year == 2010) %>% arrange(desc(SI.POV.GAPS)) -> Poor
+
+Poorest <- Poor[1:10,"country"]
+Poorest_data <- Poor[1:10,]
+Poorest %>% print()
+
+#-----------------------------
+#Ploting with hchart:
+Poorest_data %>% hchart(type = "column", hcaes(x = country, y = NY.GDP.PCAP.PP.CD/365)) %>% 
+  hc_title(text = 'PPP of the top 10 poorest countries in 2010') %>% 
+  hc_xAxis(title = list(text = 'Country')) %>% 
+  hc_yAxis(title = list(text = 'USD'))
+
+#-----------------------------
+# Life span:
+Poorest_data %>% select(country, SP.DYN.LE00.IN) %>% print()
+
+```
+
+#Question 2:
+In the Rwanda tragedy more than one million people have died. We will first plot the box plot and then add the line plot. We can see that the tragedy is visible.
+```{r warning=FALSE}
+#-----------------------------
+LE <- subset(data, region != "Aggregates") %>% 
+  select(country = country , year = year , LE = SP.DYN.LE00.IN) 
+
+LE %>% filter(country =="Rwanda") %>% 
+  group_by(year) %>%
+  summarise( LE  = mean( LE )) %>% na.omit() ->Rwanda
+
+
+plot = ggplot(data =LE) + geom_boxplot(aes( y = LE , x= year , group = year , color = year)) +
+  geom_line(data = Rwanda , aes(x = year, y =  LE), color = "red") +
+  ggtitle("Rwanda Tragedy", "Life Expectancy Box Plot") +
+  xlab("Year") + 
+  ylab("Life Expectancy (year)")
+plot
+#-----------------------------
+```
+
+# Question 3:
+We will make the Life Expectancy-Health Expenditure plot which is as follows:  
+Changing the health expenditure can make drastic changes in the life expectancy.
+```{r warning=FALSE}
+data_health = WDI(indicator = c("SH.XPD.CHEX.PC.CD", "SP.DYN.LE00.IN"),
+             extra = TRUE, start = 1960, end = 2018)
+subset(data_health ,  region != "Aggregates" ) %>% na.omit() -> health
+
+health %>% select( LE = SP.DYN.LE00.IN, HE = SH.XPD.CHEX.PC.CD, year = year) -> health_new
+
+health_new %>% hchart("scatter" , hcaes(x = HE , y = LE , group = year)) %>% 
+  hc_xAxis(title = list(text = 'Health expenditure')) %>% 
+  hc_yAxis(title = list(text = 'Life Expectancy')) %>% 
+  hc_title(text = 'Health expenditure per capita - Life Expectancy')
+
+```
+
+# Question 4:
+We can see from the plot below that it has increased in time. 
+
+```{r}
+#data frame for ppp:
+money <- data %>% filter(country == "Iran, Islamic Rep.") %>%
+                  select(money = "NY.GDP.PCAP.PP.CD" , year = year ) %>% 
+                  arrange(year) %>% 
+                  na.omit()
+# ploting:
+money %>% hchart(type ="scatter", hcaes(x = year, y =money ), color = "black") %>% 
+                   hc_title(text = "PPP of Iran") %>% 
+                   hc_xAxis(title = list(text = 'Year')) %>% 
+                   hc_yAxis(title = list(text = 'USD'))
+```
+# Question 5:
+We will first take the 20 indicators then we will make a plot for every year.  
+We can see that for ``Exports ad a Capacity to Import`` of Iran is much more than of the world. For many of the indicators we can see Iran is clearly close to the world. For ``Net Taxes`` we are much less than the world and there's a clease gap between Iran and world in ``Oil rents``.
+```{r warning=FALSE}
+indicators = c("NY.EXP.CAPM.KN", "NY.GDP.DEFL.KD.ZG", "NY.GDP.FCST.CD","NY.TRF.NCTR.CD", "NY.TAX.NIND.CD", "NY.GSR.NFCY.CD",
+               "NY.GNS.ICTR.ZS", "NY.GNP.PCAP.PP.CD", "NY.GDP.PCAP.PP.CD","NY.GNP.PCAP.KD", "NY.GNP.PCAP.KD.ZG", "NY.GDP.PCAP.KD.ZG",
+               "NY.ADJ.NNTY.CD", "NY.GDP.COAL.RT.ZS", "NY.GDP.FRST.RT.ZS", "NY.GDP.MINR.RT.ZS", "NY.GDP.PETR.RT.ZS", "NY.GNP.ATLS.CD",
+               "NY.GDP.NGAS.RT.ZS", "NY.GDP.TOTL.RT.ZS")
+
+wdi_cache <- WDIcache()
+
+parameters = WDI(indicator = indicators, extra = TRUE, start = 1990, end = 2018)
+
+Iran <- subset(parameters, region != "Aggregates") %>% filter(country == "Iran, Islamic Rep.") %>% arrange(year) 
+
+world = data.frame()
+for (i in 1990:2017) {
+  subset(parameters, region != "Aggregates") %>% filter(country != "Iran, Islamic Rep.") %>% select(year, 4:23) %>% 
+    filter(year == i) %>% colMeans(na.rm = TRUE) -> check
+  rbind(world, check) -> world
+}
+colnames(world) = c("year", indicators)
+chart_plot = list()
+i = 1
+for (indicator in indicators)
+{
+  plot_ir <- Iran %>% select( year,z= indicator) %>% mutate(place = "Iran")
+  plot_world <- world %>% select(year, z=indicator) %>% mutate(place = "world") 
+  
+  ir_world = rbind(plot_ir,plot_world) %>% na.omit()
+  hc <- ir_world %>% hchart(type = "column", hcaes(x = year, y = z, group = place)) %>%
+    hc_xAxis(title = list(text = 'Year')) %>% 
+    hc_yAxis(title = list(text = 'Indicators Value')) %>% 
+    hc_title(text = as.character(wdi_cache$series[which(
+                 wdi_cache$series[,1] == indicator),2]),margin = 20, align = "center",
+           style = list(useHTML = TRUE))
+  chart_plot[[i]] = hc
+  i = i+1
+
+}
+htmltools::tagList(chart_plot)
+```
+
+# Question 6:
+We will find the Iran cluster using ``k-means`` algorithm.
+```{r warning=FALSE}
+parameters_new = WDI(indicator = indicators, extra = TRUE, start = 1998, end = 2017)
+parameters_new <- subset(parameters_new, region != "Aggregates")
+
+parameters_new %>% group_by(country) %>% select(country, 4:23) %>% 
+  summarise_all(funs(mean, "mean", mean(., na.rm = TRUE))) %>% na.omit() ->
+  k_means_data
+
+scale(k_means_data %>% select(-country)) -> scale
+kmeans(scale, centers = 3) -> data.cluster
+data.cluster$cluster[which(k_means_data$country == "Iran, Islamic Rep.")] -> 
+  cluster.iran
+print(cat(k_means_data$country[which(data.cluster$cluster == cluster.iran)]))
+
+```
+
+# Question 7:
+Now we will use ``PCA`` and check the performance. We see that the three clusters are seperated in a very good manner therefore we can say that the performance with ``PCA`` was good
+```{r warning=FALSE}
+library(cluster)
+library(fpc)
+
+clusplot(scale, data.cluster$cluster) # this will plot the first two components
+
+plotcluster(scale, data.cluster$cluster) # checking the performance as a graph
+
+
+```
+
+# Question 8:
+Using ``Linear Regression Model`` using some of the indicators can be a way to predict to following years. These kinds of predictions are usually called type 2 chaiotic predictions. Type 2 chaiotic predictions are predicting things which the prediction itself can influence the outcome, this is in contrast with type 1 chaiotic systems which the prediction doesn't affect the outcome. Predicting such variables are indeed type 2 chaiotic predictions.
+
+#Question 9:
+We will do the same process we had as follows:
+```{r warning=FALSE}
+#-----------------------------
+# Health:
+indicators_health = c("SH.XPD.CHEX.GD.ZS", "SH.XPD.CHEX.PC.CD", "SH.XPD.CHEX.PP.CD","SH.XPD.GHED.CH.ZS", "SH.XPD.GHED.GD.ZS", "SH.XPD.GHED.GE.ZS",
+                      "SH.XPD.GHED.PC.CD", "SH.XPD.PVTD.CH.ZS", "SH.XPD.PVTD.PC.CD","SH.IMM.IDPT", "SH.MMR.RISK.ZS", "SH.DYN.MORT",
+                      "SH.H2O.SMDW.ZS", "SH.XPD.OOPC.CH.ZS", "SH.XPD.OOPC.PC.CD", "SH.VAC.TTNS.ZS", "SP.DYN.LE00.IN", "SH.DYN.AIDS.FE.ZS",
+                      "SH.IMM.MEAS", "SH.IMM.HEPB")
+
+parameters_health = WDI(indicator = indicators_health, extra = TRUE, start = 1998, end = 2018)
+
+Iran <- subset(parameters_health, region != "Aggregates") %>% filter(country == "Iran, Islamic Rep.") %>% arrange(year) 
+
+#-----------------------------
+world = data.frame()
+for (i in 1998:2017) {
+  subset(parameters_health, region != "Aggregates") %>% filter(country != "Iran, Islamic Rep.") %>% select(year, 4:23) %>% 
+    filter(year == i) %>% colMeans(na.rm = TRUE) -> check
+  rbind(world, check) -> world
+}
+colnames(world) = c("year", indicators_health)
+
+chart_plot_9 = list()
+i = 1
+for (indicator in indicators_health)
+{
+  plot_ir <- Iran %>% select( year,z= indicator) %>% mutate(place = "Iran")
+  plot_world <- world %>% select(year, z=indicator) %>% mutate(place = "world") 
+  
+  ir_world = rbind(plot_ir,plot_world) %>% na.omit()
+  hc <- ir_world %>% hchart(type = "column", hcaes(x = year, y = z, group = place)) %>%
+    hc_xAxis(title = list(text = 'Year')) %>% 
+    hc_yAxis(title = list(text = 'Indicators Value')) %>% 
+    hc_title(text = as.character(wdi_cache$series[which(
+                 wdi_cache$series[,1] == indicator),2]),margin = 20, align = "center",
+           style = list(useHTML = TRUE))
+  chart_plot_9[[i]] = hc
+  i = i+1
+
+}
+htmltools::tagList(chart_plot_9)
+
+#-----------------------------
+#Clustering:
+parameters_new <- subset(parameters_health, region != "Aggregates")
+
+parameters_new %>% group_by(country) %>% select(country, 4:23) %>% 
+  summarise_all(funs(mean, "mean", mean(., na.rm = TRUE))) %>% na.omit() ->
+  k_means_data_health
+
+scale(k_means_data_health %>% select(-country)) -> scale_health
+kmeans(scale_health, centers = 3) -> data.cluster_health
+data.cluster_health$cluster[which(k_means_data_health$country == "Iran, Islamic Rep.")] -> 
+  cluster.iran_health
+print(cat(k_means_data_health$country[which(data.cluster_health$cluster == cluster.iran_health)]))
+
+#-----------------------------
+#PCA:
+
+clusplot(scale_health, data.cluster_health$cluster) # this will plot the first two components
+
+plotcluster(scale_health, data.cluster_health$cluster) # checking the performance as a graph
+#-----------------------------
+```
+
+```{r}
+
+#Education:
+indicators_edu = c("SE.ADT.1524.LT.ZS", "SE.ADT.LITR.ZS", "SE.ENR.PRIM.FM.ZS",
+  "SE.ENR.PRSC.FM.ZS", "SE.ENR.SECO.FM.ZS", "SE.ENR.TERT.FM.ZS",
+  "SE.PRE.ENRL.TC.ZS", "SE.PRM.TCAQ.ZS", "SE.XPD.TOTL.GB.ZS",
+  "SE.XPD.MTOT.ZS", "SE.XPD.CTOT.ZS", "SE.TER.CUAT.BA.ZS",
+  "SE.TER.CUAT.DO.ZS", "SE.TER.CUAT.MS.ZS", "SE.TER.CUAT.ST.ZS",
+  "SE.SEC.DURS", "SE.PRM.TENR", "SE.PRM.REPT.ZS",
+  "SE.PRM.OENR.ZS", "SE.PRM.GINT.ZS")
+
+parameters_edu = WDI(indicator = indicators_edu, extra = TRUE, start = 1998, end = 2017)
+
+Iran <- subset(parameters_edu, region != "Aggregates") %>% filter(country == "Iran, Islamic Rep.") %>% arrange(year) 
+
+#-----------------------------
+world = data.frame()
+for (i in 1998:2017) {
+  subset(parameters_edu, region != "Aggregates") %>% filter(country != "Iran, Islamic Rep.") %>% select(year, 4:23) %>% 
+    filter(year == i) %>% colMeans(na.rm = TRUE) -> check
+  rbind(world, check) -> world
+}
+colnames(world) = c("year", indicators_edu)
+
+chart_plot_10 = list()
+i = 1
+for (indicator in indicators_edu)
+{
+  plot_ir <- Iran %>% select( year,z= indicator) %>% mutate(place = "Iran")
+  plot_world <- world %>% select(year, z=indicator) %>% mutate(place = "world") 
+  
+  ir_world = rbind(plot_ir,plot_world) %>% na.omit()
+  hc <- ir_world %>% hchart(type = "column", hcaes(x = year, y = z, group = place)) %>%
+    hc_xAxis(title = list(text = 'Year')) %>% 
+    hc_yAxis(title = list(text = 'Indicators Value')) %>% 
+    hc_title(text = as.character(wdi_cache$series[which(
+                 wdi_cache$series[,1] == indicator),2]),margin = 20, align = "center",
+           style = list(useHTML = TRUE))
+  chart_plot_10[[i]] = hc
+  i = i+1
+
+}
+htmltools::tagList(chart_plot_10)
+#-----------------------------
+#Clustering:
+parameters_new <- subset(parameters_edu, region != "Aggregates")
+
+parameters_new %>% group_by(country) %>% select(country, 4:23) %>% 
+  summarise_all(funs(mean, "mean", mean(., na.rm = TRUE))) %>% na.omit() ->
+  k_means_data_edu
+
+scale(k_means_data_edu %>% select(-country)) -> scale_edu
+kmeans(scale_edu, centers = 3) -> data.cluster_edu
+data.cluster_edu$cluster[which(k_means_data_edu$country == "Iran, Islamic Rep.")] -> 
+  cluster.iran_edu
+print(cat(k_means_data_edu$country[which(data.cluster_edu$cluster == cluster.iran_edu)]))
+
+#-----------------------------
+#PCA:
+
+clusplot(scale_edu, data.cluster_edu$cluster) # this will plot the first two components
+
+plotcluster(scale_edu, data.cluster_edu$cluster) # checking the performance as a graph
+
+
+```
+
+
+
+
+
+
+#Question 10:
+We will put together all the indicators we will have and check the results:
+
+```{r eval=FALSE, warning=FALSE}
+
+merged = merge(k_means_data,merge(k_means_data_health,k_means_data_edu)) %>% select(-country)
+dist = stats::dist(merged_c,method = "euclidean")
+row.names(dist) = merged$country
+clus = hclust(dist, method = "complete")
+
+```
+
+#Question 11:
+1) How has the labor force in Middle east and North Africa changed? 
+```{r warning=FALSE}
+labor =WDI(indicator= c("SL.TLF.TOTL.MA.ZS"), 
+          extra = TRUE, start = 1998, end = 2017)
+labor <- subset(labor, region = "Middle East & North Africa")
+
+labor %>%    select(country ,year, percent ="SL.TLF.TOTL.MA.ZS") %>% arrange(year)  -> labor_temp
+labor_temp %>% hchart(type = "line", 
+                     hcaes(x = year, y = percent, group = country))  %>% 
+  hc_title(text = "Labor Force in Time for Middle east and North Africa countries",
+           align = 'center') %>% 
+  hc_xAxis(title = list(text = 'Year')) %>% 
+  hc_yAxis(title = list(text = 'Labor Force(%)'))
+
+
+
+```
+
+
+2) How is the the number of teachers correlated to the number of educated people?
+
+```{r}
+
+
+labor =WDI(indicator= c("SE.TER.ENRL", "SE.TER.TCHR"),
+          extra = TRUE, start = 1998, end = 2017)
+labor  %>% select(number_teachers ="SE.TER.TCHR", educated ="SE.TER.ENRL") %>% na.omit()-> labor_temp
+
+t.test(labor_temp$number_teachers,labor_temp$educated)
+
+
+```
+
+As we can see the p-value is very low so these two affect each other.
+
+3) Which 10 countries had the lowest female workers rate?
+
+```{r}
+Workers =WDI(indicator= c("IC.FRM.FEMW.ZS"),
+          extra = TRUE, start = 1998, end = 2017) %>% select(country,year,percent ="IC.FRM.FEMW.ZS") %>% 
+                        na.omit()
+Workers %>% group_by(country,percent) %>% arrange(percent) ->Workers
+
+print(Workers[1:10,])
+```
+
