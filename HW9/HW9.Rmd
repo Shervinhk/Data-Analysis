@@ -1,0 +1,564 @@
+---
+title: "Home Work - 9"
+author: "Shervin Hakimi(93111399)"
+date: "5/19/2018"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1:
+We will use the first date of every company to find the values for every year in a cycle of one, two and five year. We also used the fact the we have to check the relative increase of stocks therefore we used ``close[end year] - close[first year]/close[first year]`` as our main indicator of change of stocks through these years. As we don't always have the values of the given dates, we used the average of the closest dates. first we will load our needed libraries:
+
+```{r cars, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(stringr)
+library(highcharter)
+library(EBImage)
+library(quantmod)
+
+```
+Now for the question we have:
+```{r message=FALSE, warning=FALSE}
+# OHLC time series, Open High Low Closed prices
+# analysing the stocks
+# we want to unify all files and data.
+
+
+file_namse <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/') %>% str_replace('.csv', '')
+file_paths <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/', full.names = TRUE)
+
+data <- read_csv(file_paths[1]) %>% select(Date, Close)
+
+
+data$Date <- as.numeric(data$Date)
+max = max(data$Date)
+min = min(data$Date)
+
+dif = max-min
+one_year_count = floor(dif/(365)-1)
+
+
+find_close <- function(data,n)
+{
+  #----------------------------
+  #n_year:
+  data$Date <- as.numeric(data$Date)
+  min = min(data$Date)
+  max = max(data$Date)
+  dif = max-min
+  
+  one_year_count = floor(dif/(n*365))
+  if(one_year_count<1){return(0)}
+  
+  year = which(data$Date == min ) 
+  average = data.frame(Average = c(0))
+  average[1,1] = mean(data$Close[year])
+  
+  benefit = data.frame(one = c(0))
+
+  for (i in 2:one_year_count)
+  {
+  year = which(data$Date %in% c((min+(i-1)*n*365-10):(min+(i-1)*n*365+10)) )  
+  average[i,1] = mean(data$Close[year])
+  
+  benefit[i-1,1] = (average[i,1] - average[i-1,1])/(average[i,1])
+  }
+  benefit = na.omit(benefit)
+  max_benefit = max(benefit)
+  return(max_benefit)
+  #----------------------------
+}
+
+constitutes = read.csv("/Users/shervin/Downloads/class_data 2/constituents.csv",stringsAsFactors = FALSE)
+
+Sector = data.frame(Sector=c(0))
+for (i in 1: length(file_namse))
+{
+  if( sum(constitutes$Symbol == file_namse[i]) !=0)
+{
+Sector[i,1] = constitutes$Sector[which(constitutes$Symbol == file_namse[i] )]
+  }
+  else
+  {
+    Sector[i,1] = -1
+  }
+  
+}
+
+
+datalist = list()
+ 
+one_year = find_close(data,1)
+two_year = find_close(data,2)
+five_year = find_close(data,5)
+Values = data.frame( OneYear = one_year,
+                     TwoYears = two_year,
+                     FiveYears = five_year, Company = file_namse[1])
+                       
+
+datalist[[1]] = Values
+for ( i in 2:length(file_namse))
+{
+data_ext <- read_csv(file_paths[i]) %>% select(Date, Close)
+one_year = find_close(data_ext,1)
+two_year = find_close(data_ext,2)
+five_year = find_close(data_ext,5)
+Values_new = data.frame( OneYear = one_year,
+                     TwoYears = two_year,
+                     FiveYears = five_year, Company = file_namse[i] )
+
+datalist[[i]] <- Values_new
+}
+
+big_data = do.call(rbind, datalist)
+big_data_final = cbind(big_data,Sector)
+
+big_data %>% 
+        group_by(OneYear) %>% 
+        select(Company) %>% 
+        arrange(desc(OneYear))-> one_year_top
+one_year_top[1:10,] %>% 
+  hchart("column", hcaes(x=Company, y =OneYear)) %>% 
+  hc_title(text = "Top 10  companies in stock market by relative profit") %>% 
+  hc_xAxis(title = list(text = "name of the company")) %>% 
+  hc_subtitle(text = "1 year")
+
+
+
+big_data %>% 
+  group_by(TwoYears) %>% 
+  select(Company) %>% 
+  arrange(desc(TwoYears))-> two_year_top
+
+two_year_top[1:10,] %>%   hchart("column", hcaes(x=Company, y =TwoYears)) %>% 
+  hc_title(text = "Top 10  companies in stock market by relative profit") %>% 
+  hc_xAxis(title = list(text = "name of the company")) %>% 
+  hc_subtitle(text = "2 year")
+
+big_data %>% 
+  group_by(FiveYears) %>% 
+  select(Company) %>% 
+  arrange(desc(FiveYears))-> five_year_top
+
+five_year_top[1:10,] %>%   hchart("column", hcaes(x=Company, y =FiveYears)) %>% 
+  hc_title(text = "Top 10  companies in stock market by relative profit") %>% 
+  hc_xAxis(title = list(text = "name of the company")) %>% 
+  hc_subtitle(text = "5 year")
+
+names = c("Health Care","Industrials","Consumer Discretionary",
+          "Information Technology","Consumer Staples","Utilities",
+          "Financials","Real Estate","Materials",
+          "Energy","-1")
+
+for ( i in 1:length(names))
+{
+big_data_final %>% 
+  filter(Sector== names[i]) %>% 
+  group_by(OneYear) %>% 
+  select(Company) %>% 
+  arrange(desc(OneYear)) -> Sector_one_year
+  Sector_one_year[1:10,2]
+  
+  big_data_final %>% 
+    filter(Sector== names[i]) %>% 
+    group_by(TwoYears) %>% 
+    select(Company) %>% 
+    arrange(desc(TwoYears)) -> Sector_two_year
+  Sector_two_year[1:10,2]
+  
+  big_data_final %>% 
+    filter(Sector== names[i]) %>% 
+    group_by(FiveYears) %>% 
+    select(Company) %>% 
+    arrange(desc(FiveYears)) -> Sector_five_year
+  Sector_five_year[1:10,2]
+}
+  Sector_five_year[1:10,2]
+  Sector_two_year[1:10,2]
+  Sector_one_year[1:10,2]
+
+
+
+
+```
+
+## Question 2:
+
+We will find the values of ``open`` for every 13th day of every month for every company. With this value we can check whether the density of positive values are much different than of those negatives. In the end we will use a ``t-test`` to check our assumption.
+```{r pressure, message=FALSE, warning=FALSE}
+#HW9:
+#We will check whether this assumptions is good or not:
+#--------------------------------------
+file_namse <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/') %>% str_replace('.csv', '')
+file_paths <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/', full.names = TRUE)
+
+data <- read_csv(file_paths[1]) %>% select(Date, Close,Open)
+data$Date = as.Date(data$Date) #turning into date
+#--------------------------------------
+#Defning the function that finds the values for the 13th day:
+check_thirteen <- function(data)
+{
+  data %>% mutate(days = as.integer(format(Date,"%d"))) %>% filter(days == 13) %>% 
+    mutate(value = Close - Open) -> final
+  return(final$value)
+}
+#--------------------------------------
+hist = list()
+for (i in 1:length(file_namse))
+{
+  data_out <- read_csv(file_paths[i]) %>% select(Date, Close,Open)
+  hist[[i]] = check_thirteen(data_out)
+}
+
+hist_ogram = unlist(hist)
+#--------------------------------------
+#Histogram:
+h <- hist(hist_ogram, plot = FALSE,breaks = 10)
+hchart(h) %>% 
+  hc_title(text = "Histogram of Value in every 13th day of the Month") %>% 
+  hc_xAxis(title = list(text = "value")) %>% 
+  hc_yAxis(title = list(text = "Number of times"))
+
+#--------------------------------------
+#If the values of positive are different than negatives
+t.test(hist_ogram,mu=0) #t.test rejects the hypothesis that 13th is "unlucky" 
+
+
+
+```
+We see that the ``p-value`` is very low. our zero hypothathis was that the value of density for positive is different that the negatives. As we can see it is not. So the 13th of every month is really not much different than any other day and it is not "unlucky".
+
+## Question 3:
+For this question we will use different defnitions and in the end we will see that all of these definitions give one date ( we just put one of the ways), one way to find the day with the most ``Turn Over`` is to find the highest value of ``Volume``. This is not accurate! So another assumptions is to find the highest value of ``Volumne(close+open)`` which is more reasonable, another is ``Volume(high-low)``. In both of these cases we get the date ``2008-10-10`` which makes sense, because this is the exact date of the 2008 crisis.
+```{r message=FALSE, warning=FALSE}
+#HW9
+#Question 3
+file_namse <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/') %>% str_replace('.csv', '')
+file_paths <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/', full.names = TRUE)
+
+#----------------------------------
+#Concatanting all the data:
+datalist_volume = list()
+for ( i in 1:length(file_namse))
+{
+  datalist_volume[[i]] <- read_csv(file_paths[i]) %>% select(Date,Volume,High,Low)
+}
+
+#----------------------------------
+#Finding the highest Volume(high-low) in all the days. the highest is the desired one.
+
+big_data_volume = do.call(rbind,datalist_volume)
+big_data_volume %>% 
+  group_by(Date) %>% 
+  summarise(total_Volume = sum(Volume*(High-Low))) %>% 
+  arrange(desc(total_Volume))-> big_data_volume_final
+#----------------------------------
+#Highest rate:
+big_data_volume_final[1,1] #2008-10-10"
+sprintf("The highest rate was 2008-10-10")
+
+
+```
+
+## Question 4:
+As we've discussed in the class we will check for 10 days. we will take every day and make a model and check the models with ``mse`` to see which of these models is the best. 
+
+```{r message=FALSE, warning=FALSE}
+#HW9
+# Question 4:
+
+data_apple =read.csv("/Users/shervin/Downloads/class_data 2/stock_dfs/AAPL.csv") %>%
+              select(Date,Open)
+#----------------------------------
+# we will bind till the 10th day:
+nrow = nrow(data_apple)
+date = data_apple[-(1:10),1]
+day_first = data_apple[-(1:10),2]
+day_second = data_apple[c(-(1:9),-nrow),2]
+day_third = data_apple[c(-(1:8),-((nrow-1):nrow)),2]
+day_fourth = data_apple[c(-(1:7),-((nrow-2):nrow)),2]
+day_fifth = data_apple[c(-(1:6),-((nrow-3):nrow)),2]
+day_sixth = data_apple[c(-(1:5),-((nrow-4):nrow)),2]
+day_seventh = data_apple[c(-(1:4),-((nrow-5):nrow)),2]
+day_eight= data_apple[c(-(1:3),-((nrow-6):nrow)),2]
+day_nine = data_apple[c(-(1:2),-((nrow-7):nrow)),2]
+day_tenth = data_apple[c(-(1:1),-((nrow-8):nrow)),2]
+
+days =as.data.frame( cbind(date,day_first,day_second,
+             day_third,day_fourth,day_fifth,
+             day_sixth,day_seventh,day_eight,
+             day_nine,day_tenth))
+#----------------------------------
+#Now we will use lm to see which is the best:
+one_day = lm(day_first ~ day_second, data = days )
+summary(one_day)
+
+two_day = lm(day_first ~ day_second+day_third, data = days )
+summary(two_day)
+
+three_day = lm(day_first ~ day_second+day_third+day_fourth, data = days )
+summary(three_day)
+
+fourth_day = lm(day_first ~ day_second+day_third+day_fourth+day_fifth, data = days )
+summary(fourth_day)
+
+fifth_day = lm(day_first~ day_second+day_third+day_fourth+day_fifth+day_sixth, data = days )
+summary(fifth_day)
+
+sixth_day = lm(day_first~ day_second+day_third+day_fourth+day_fifth+day_sixth+day_seventh, data = days )
+summary(sixth_day)
+
+
+seventh_day = lm(day_first~ day_second+day_third+day_fourth+day_fifth+day_sixth+day_seventh+day_eight, data = days )
+summary(seventh_day)
+
+eight_day = lm(day_first~ day_second+day_third+day_fourth+day_fifth+day_sixth+day_seventh+day_eight+day_nine, data = days )
+summary(eight_day)
+
+nine_day = lm(day_first~ day_second+day_third+day_fourth+day_fifth+day_sixth+day_seventh+day_eight+day_nine+day_tenth, data = days )
+summary(nine_day)
+
+mse <- function(sm) 
+  mean(sm$residuals^2)
+
+mse(nine_day)
+mse(eight_day)
+mse(seventh_day)
+mse(sixth_day)
+mse(fifth_day)
+mse(fourth_day)
+mse(three_day)
+mse(two_day)
+mse(one_day)
+
+#As we can see from the values of the summary The best day is using 8 days before with lower Fstatistic and MSE
+sprintf("As we can see from the values of the summary The best day is using 8 days before with lower Fstatistic and MSE that means we should keep it till the last 2 days")
+#----------------------------------
+
+
+```
+
+## Question 5:
+We will put all the values in columns and make a big data frame. We will use each column for the ``PCA``.
+```{r message=FALSE, warning=FALSE}
+#HW9
+# Question 5:
+library(plyr)
+file_namse <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/') %>% str_replace('.csv', '')
+file_paths <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/', full.names = TRUE)
+
+data_pca = list()
+length = data.frame(length =0)
+for( i in 1:length(file_namse))
+{
+data_pca[[i]] <- read_csv(file_paths[i]) %>% select(Open)
+length[i,1] = length(data_pca[[i]]$Open)
+}
+max_length = max(length)
+
+m = which(length == max_length)
+
+data_pca_new = list()
+for (i in m)
+{
+  data_pca_new[[i]] = data_pca[[i]]
+}
+data_pca_new_check =compact(data_pca_new)
+
+big_data_pca = do.call(cbind,data_pca_new_check)
+
+K = prcomp(big_data_pca)
+
+h_c = data.frame(check = cumsum(K$sdev)/sum(K$sdev) ,
+                 P= 1:length(K$sdev) )
+h_c %>% hchart( hcaes(x = P , y = check),type = "scatter" ) %>% 
+  hc_title(text = "Variance of PCA") %>% 
+  hc_xAxis(title = list(text ="PC")) %>% 
+  hc_yAxis(title = list(text="Variance"))
+
+#How much the first 3 PC s keep is :
+h_c$check[3]
+
+
+```
+## Question 6:
+As the questions says, we will first devide and make an average for every ``sector`` then we will use the values in ``indexes``. In the end we will use these for ``PCA`` and plot the ``biplot``.
+```{r message=FALSE, warning=FALSE}
+file_namse <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/') %>% str_replace('.csv', '')
+file_paths <- list.files('/Users/shervin/Downloads/class_data 2/stock_dfs/', full.names = TRUE)
+constitutes = read.csv("/Users/shervin/Downloads/class_data 2/constituents.csv",stringsAsFactors = FALSE)
+detach(package:plyr)
+library(quantmod)
+#---------------------------------------
+Sector = data.frame(Sector=c(0))
+for (i in 1: length(file_namse))
+{
+  if( sum(constitutes$Symbol == file_namse[i]) !=0)
+  {
+    Sector[i,1] = constitutes$Sector[which(constitutes$Symbol == file_namse[i] )]
+  }
+  else
+  {
+    Sector[i,1] = -1
+  }
+  
+}
+#---------------------------------------
+data <- read.csv(file_paths[1],stringsAsFactors=FALSE) %>% select(Date, Open)
+
+stock =data.frame(Date =data$Date, Open=data$Open,Company =file_namse[1],
+                  Sector = Sector[1,1])
+#---------------------------------------
+for( i in 2:length(file_namse))
+{
+data <- read.csv(file_paths[i],stringsAsFactors=FALSE) %>% select(Date, Open)
+
+new_stock = data.frame(Date =data$Date, Open=data$Open,Company =file_namse[i],
+                   Sector = Sector[i,1])
+stock = rbind(stock,new_stock)
+}
+#---------------------------------------
+
+stock_check = as.data.frame(stock)
+names = c("Health Care","Industrials","Consumer Discretionary",
+          "Information Technology","Consumer Staples","Utilities",
+          "Financials","Real Estate","Materials",
+          "Energy","-1")
+#---------------------------------------
+#Finding all the averages for all the sectors:
+stock %>% filter(Sector == names[1]) %>% 
+  group_by(Date) %>% 
+  summarise(Average_Open = mean(Open)) -> temp
+
+for (i in 2:length(names))
+{
+  stock %>% filter(Sector == names[i]) %>% 
+    group_by(Date) %>% 
+    summarise(Average_Open = mean(Open)) -> temp_new
+  temp = cbind(temp,temp_new$Average_Open)
+}
+#---------------------------------------
+indexes = read.csv("/Users/shervin/Downloads/class_data 2/indexes.csv" )
+indexes = na.omit(indexes)
+#---------------------------------------
+#Joining indexes and our data:
+merged = merge(indexes, temp, by = "Date")
+merged$Date <- NULL
+
+#---------------------------------------
+#PCA:
+merged_pca = prcomp((merged))
+summary(merged_pca)
+#---------------------------------------
+#biplot:
+biplot(merged_pca,cex = 0.8)
+#---------------------------------------
+
+```
+
+
+
+## Question 7:
+We will use all the components of Apple and check if the first PC can be a better choice than the one we found in question 4.
+
+```{r message=FALSE, warning=FALSE}
+#HW9
+# Question 7:
+
+data_apple =read.csv("/Users/shervin/Downloads/class_data 2/stock_dfs/AAPL.csv") 
+data_apple$Date <- NULL
+
+data_apple_pca = prcomp(data_apple)
+summary(data_apple_pca)
+biplot(data_apple_pca)
+
+
+fit = lm(data_apple$Open ~data_apple_pca$x[,1], data=data_apple )
+summary(fit)
+mse(fit)
+
+#This has a lower MSE than the one in Question 4
+sprintf("This has a lower MSE than the one in Question 4")
+
+```
+
+##Question 8:
+For this question we have to use the same indexes that we used in question 6 and we'll give labels to each situation. If the stock has increased since the last day we'll give ``1`` if not we will give ``0``. we will give this to our ``glm``. Our features are the ``PCA`` in the question 5. 
+```{r message=FALSE, warning=FALSE}
+indexes = read.csv("/Users/shervin/Downloads/class_data 2/indexes.csv" )
+indexes = na.omit(indexes)
+merged = merge(indexes, temp, by = "Date")
+merged$Date <- NULL
+
+fit_1 = lm(merged$Average_Open~.,data = merged)
+summary(fit_1)
+```
+## Question 9:
+We will use the codes that we've discussed to find the compressed version of the picture. We see that with aproxamitly 115 components we can get 99% of the original picture. Therefore we need ``115`` components.
+
+```{r message=FALSE, warning=FALSE}
+#-----------------------------------------------
+pic = flip(readImage("/Users/shervin/Desktop/Data Analysis/HW9'/Unknown.jpg"))
+
+red.weigth   = .2989; green.weigth = .587; blue.weigth  = 0.114
+
+img = red.weigth * imageData(pic)[,,1] +
+  green.weigth * imageData(pic)[,,2] + blue.weigth  * imageData(pic)[,,3]
+image(img, col = grey(seq(0, 1, length = 256)))
+#-----------------------------------------------
+#PCA
+pca.img = prcomp(img, scale=TRUE)
+
+plot(summary(pca.img)$importance[3,], type="l",
+     ylab="%variance explained", xlab="nth component (decreasing order)")
+
+#-----------------------------------------------
+#With trial and error 115 is the best number:
+abline(h=0.99,col="red");abline(v = 115,col="red",lty=3)
+size = c()
+n = 200
+for (i in 1:n){
+  chosen.components = 1:i
+  feature.vector = pca.img$rotation[,chosen.components]
+  compact.data = t(feature.vector) %*% t(img)
+  
+  temp = (object.size(compact.data) + object.size(feature.vector))/1000000
+  size = c(size,temp)
+  approx.img = t(feature.vector %*% compact.data) 
+}
+temp1 = data.frame(PC = 1:n,size = size)
+
+check = data.frame(P = 1:n,value = size)
+
+check %>% hchart(hcaes(x = P , y = value), type = "line") %>% 
+  hc_title(text = "Size - number of PCs") %>% 
+  hc_yAxis(title = list(text = "Mean Value")) %>% 
+  hc_xAxis(text = "PCs")
+#-----------------------------------------------
+#PCA Picture:
+chosen.components = 1:115
+feature.vector = pca.img$rotation[,chosen.components]
+compact.data = t(feature.vector) %*% t(img)
+temp = (object.size(compact.data) + object.size(feature.vector))/1000000
+approx.img = t(feature.vector %*% compact.data) 
+image(approx.img, col = grey(seq(0, 1, length = 256)))
+#-----------------------------------------------
+
+
+```
+
+##Question 10:
+There are several ideas we can choose to put:  
+1. We could see where the biggest difference between the highest and lowest in a day happend.  
+2. If we knew which companies went bankrupt through these years, we could use that data to predict which companies will go bankrupt in the future.  
+3. We could also use the data with the GDP data to see how it influences the GDP of America  
+4. When is the least riskiest time to but a stock? we could find the answers by checking the oscilations of the stock market.  
+5. How have the smallest stocks change through time? using the data we have, we can see the change of every stock in time. 
+
