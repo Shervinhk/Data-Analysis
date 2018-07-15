@@ -1,0 +1,962 @@
+---
+title: "Home Work 7 - Data Analysis "
+author: "Shervin Hakimi"
+date: "4/29/2018"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+
+## Question 1:
+We will first remove the variables that have aproximatley the same information.  
+we will call those variables that we need as ``non-redundant`` and select them for our data matrix ``murder_suicide``. We will also remove those factors which are assigned as "Unknown". Because we are working with factors we will make each level as a seperate binary valued column and make our model with this new data frame.  
+We will plot the first then variables for the correlation matrix because it was huge. We have also plotted the whole matrix just to get a grasp of the size and the information it might have. We also did this for the scatter plot.
+
+
+```{r cars, echo=TRUE, message=FALSE, warning=FALSE}
+#----------------
+#We will first load the necessary libraries:
+library(ggplot2)
+library(corrplot)
+library(onehot)
+library(dplyr)
+#----------------
+#HW 07:
+#Question1:
+
+#Readcing data:
+murder_suicide = read.csv("/Users/shervin/Desktop/Data Analysis/HW7/data 2/murder_suicide.csv")
+
+
+#----------------
+# Columns which are not redundant:
+not.redundant = c("Age",
+                  "ResidentStatus",
+                  "Education2003Revision",
+                  "MonthOfDeath",
+                  "Sex",
+                  "AgeType",
+                  "PlaceOfDeathAndDecedentsStatus",
+                  "MaritalStatus",
+                  "DayOfWeekOfDeath",
+                  "InjuryAtWork",
+                  "MannerOfDeath",
+                  "MethodOfDisposition",
+                  "Autopsy",
+                  "ActivityCode",
+                  "PlaceOfInjury",
+                  "Icd10Code",
+                  "NumberOfEntityAxisConditions",
+                  "NumberOfRecordAxisConditions",
+                  "Race"
+)
+
+#----------------
+#Removing redundants and turning factors to integers 
+#We will give every factor a binary with the onehot package to see their influence:
+murder_suicide = murder_suicide[,not.redundant]
+murder_suicide %>% 
+  filter(Education2003Revision!=9,
+         PlaceOfInjury!=99,
+         PlaceOfDeathAndDecedentsStatus!=9,
+         MaritalStatus!="U",
+         InjuryAtWork!="U",
+         DayOfWeekOfDeath!=9,
+         Autopsy!="U", ActivityCode!=99,
+         PlaceOfInjury!=9) -> murder_suicide
+#----------------
+#Changing to factors thos that are sort of factors:
+murder_suicide$Sex <- factor(murder_suicide$Sex)
+murder_suicide$MaritalStatus <- factor(murder_suicide$MaritalStatus)
+murder_suicide$InjuryAtWork <- factor(murder_suicide$InjuryAtWork)
+murder_suicide$MethodOfDisposition <- factor(murder_suicide$MethodOfDisposition)
+murder_suicide$Autopsy <- factor(murder_suicide$Autopsy)
+murder_suicide$PlaceOfInjury <- factor(murder_suicide$PlaceOfInjury)
+murder_suicide$Icd10Code <-factor(murder_suicide$Icd10Code)
+murder_suicide$ResidentStatus <- factor(murder_suicide$ResidentStatus)
+murder_suicide$Education2003Revision <- factor(murder_suicide$Education2003Revision)
+murder_suicide$PlaceOfDeathAndDecedentsStatus <- factor(murder_suicide$PlaceOfDeathAndDecedentsStatus)
+murder_suicide$Race <-factor(murder_suicide$Race)
+murder_suicide$MonthOfDeath <-factor(murder_suicide$MonthOfDeath)
+murder_suicide$DayOfWeekOfDeath <-factor(murder_suicide$DayOfWeekOfDeath)
+#----------------
+#Using onehot to make the binaries:
+temp = onehot(murder_suicide , stringsAsFactors = TRUE, max_levels = 10000)
+murder_suicide_levels = as.data.frame(predict(temp,murder_suicide))
+#----------------
+#correlation Matrix:
+correlation_ms = cor(murder_suicide_levels)
+
+#----------------
+#Plotting Corrleation Matrix:
+corrplot(correlation_ms, method="circle")
+#Because it is so big we will first show the first 15:
+corrplot(correlation_ms[1:15,1:15], method="color")
+#All others:
+corrplot(correlation_ms, method="color",tl.cex = 0.4)
+
+#----------------
+#plotting the scatter plot:
+plot(murder_suicide_levels[1:1000,1:10])
+
+#----------------
+
+
+
+```
+We see that by making the factors as seperate columns we can easily see some significant correlations between some of the variables.
+
+
+## Question 2:
+We will use the Kruskall Wallis test. Because we can't assume any distribution, therefore we have to use a non-parametric test. Between our tests Kruskall Wallis can be a good test because we have more than two states.  
+As we can see all of variables have a lower ``p-value`` than ``0.05`` and therefore our assumption that these variables have no effect on death or suicide is not correct in all of these cases
+
+```{r pressure, echo=TRUE, message=FALSE, warning=FALSE}
+#----------------
+#We will first load the necessary libraries:
+library(ggplot2)
+library(corrplot)
+#----------------
+#HW 07:
+#Question 2:
+
+#Readcing data:
+murder_suicide = read.csv("/Users/shervin/Desktop/Data Analysis/HW7/data 2/murder_suicide.csv")
+
+#----------------
+# Columns which are not redundant:
+not.redundant = c("Age",
+                  "ResidentStatus",
+                  "Education2003Revision",
+                  "MonthOfDeath",
+                  "Sex",
+                  "AgeType",
+                  "PlaceOfDeathAndDecedentsStatus",
+                  "MaritalStatus",
+                  "DayOfWeekOfDeath",
+                  "InjuryAtWork",
+                  "MannerOfDeath",
+                  "MethodOfDisposition",
+                  "Autopsy",
+                  "ActivityCode",
+                  "PlaceOfInjury",
+                  "Icd10Code",
+                  "NumberOfEntityAxisConditions",
+                  "NumberOfRecordAxisConditions",
+                  "Race"
+)
+
+#----------------
+#Removing redundants and turning factors to integers:
+murder_suicide = murder_suicide[,not.redundant]
+murder_suicide_int = as.data.frame(lapply(murder_suicide,as.numeric))
+
+murder_suicide_int %>% 
+  mutate(Suicide = (MannerOfDeath==2) ) ->murder_suicide_int
+
+murder_suicide_int$Suicide <- 1*murder_suicide_int$Suicide
+#----------------
+#Finding P-values:
+
+#  Age - Manner of Death
+
+kruskal.test( Suicide ~ Age, 
+              data = murder_suicide_int)
+
+
+#  Sex - Manner of Death
+kruskal.test( Suicide ~ Sex, 
+              data = murder_suicide_int)
+
+
+#  Education - Manner of Death
+kruskal.test( Suicide ~ Education2003Revision,
+              data = murder_suicide_int)
+
+
+#  Race - Manner of Death
+kruskal.test( Suicide ~ Race, 
+              data = murder_suicide_int)
+
+
+#  Disposition - Manner of Death MethodOfDisposition
+kruskal.test( Suicide ~ MethodOfDisposition,
+              data = murder_suicide_int)
+
+#----------------
+
+
+
+```
+
+## Question 3:
+For our first model we will use all the given variables. We will check the``p-value``s to see which of these variables have an impact. In our next model we will use some variables that were more essential. Again we will check the ``p-value``s and take the most significant variables. From these variables we build our final model with the most significant variables.  
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#HW 07:
+#Question 3:
+library(boot)
+library(dplyr)
+#Readcing data:
+
+#----------------
+# Columns which are not redundant:
+not.redundant = c("Age",
+                  "ResidentStatus",
+                  "Education2003Revision",
+                  "MonthOfDeath",
+                  "Sex",
+                  "AgeType",
+                  "PlaceOfDeathAndDecedentsStatus",
+                  "MaritalStatus",
+                  "DayOfWeekOfDeath",
+                  "InjuryAtWork",
+                  "MannerOfDeath",
+                  "MethodOfDisposition",
+                  "Autopsy",
+                  "ActivityCode",
+                  "PlaceOfInjury",
+                  "Icd10Code",
+                  "NumberOfEntityAxisConditions",
+                  "NumberOfRecordAxisConditions",
+                  "Race"
+)
+
+#----------------
+#Removing redundants and turning factors to integers:
+murder_suicide = murder_suicide[,not.redundant]
+murder_suicide_int = as.data.frame(lapply(murder_suicide,as.numeric))
+
+
+murder_suicide_int$Sex <- factor(murder_suicide_int$Sex)
+murder_suicide_int$MaritalStatus <- factor(murder_suicide_int$MaritalStatus)
+murder_suicide_int$InjuryAtWork <- factor(murder_suicide_int$InjuryAtWork)
+murder_suicide_int$MethodOfDisposition <- factor(murder_suicide_int$MethodOfDisposition)
+murder_suicide_int$Autopsy <- factor(murder_suicide_int$Autopsy)
+murder_suicide_int$PlaceOfInjury <- factor(murder_suicide_int$PlaceOfInjury)
+murder_suicide_int$Icd10Code <-factor(murder_suicide_int$Icd10Code)
+murder_suicide_int$ResidentStatus <- factor(murder_suicide_int$ResidentStatus)
+murder_suicide_int$Education2003Revision <- factor(murder_suicide_int$Education2003Revision)
+murder_suicide_int$PlaceOfDeathAndDecedentsStatus <- factor(murder_suicide_int$PlaceOfDeathAndDecedentsStatus)
+murder_suicide_int$Race <-factor(murder_suicide_int$Race)
+murder_suicide_int$MonthOfDeath <-factor(murder_suicide_int$MonthOfDeath)
+murder_suicide_int <-factor(murder_suicide_int$Race)
+
+
+
+
+#----------------
+#Taking the Suicides:
+murder_suicide_levels %>% 
+  mutate(Suicide = (MannerOfDeath==2) ) ->murder_suicide_levels
+
+murder_suicide_levels$Suicide <- 1*murder_suicide_levels$Suicide
+
+
+myglm=glm(data= murder_suicide_levels,
+    formula =  Suicide~`Age`+`ResidentStatus=1`+
+              `ResidentStatus=2`+`ResidentStatus=3`+
+              `ResidentStatus=4`+`Education2003Revision=0`+
+              `Education2003Revision=1`+`Education2003Revision=2`+
+              `Education2003Revision=3`+`Education2003Revision=4`+
+              `Education2003Revision=5`+`Education2003Revision=6`+
+              `Education2003Revision=7`+`Education2003Revision=8`+
+              `Sex=F`+
+              `Sex=M`+`AgeType`+
+              `PlaceOfDeathAndDecedentsStatus=1`+`PlaceOfDeathAndDecedentsStatus=2`+
+              `PlaceOfDeathAndDecedentsStatus=3`+`PlaceOfDeathAndDecedentsStatus=4`+
+              `PlaceOfDeathAndDecedentsStatus=5`+`PlaceOfDeathAndDecedentsStatus=6`+
+              `PlaceOfDeathAndDecedentsStatus=7`+`MaritalStatus=D`+
+              `MaritalStatus=M`+`MaritalStatus=S`+
+              `MaritalStatus=W`+
+              `InjuryAtWork=N`+`InjuryAtWork=Y`+
+              `MethodOfDisposition=B`+
+              `DayOfWeekOfDeath=1`+`DayOfWeekOfDeath=2`+
+              `DayOfWeekOfDeath=3`+`DayOfWeekOfDeath=4`+`DayOfWeekOfDeath=5`+
+              `MonthOfDeath=1` +
+              `MonthOfDeath=2`+`MonthOfDeath=3`+`MonthOfDeath=4`+
+              `MonthOfDeath=5`+`MonthOfDeath=6`+`MonthOfDeath=7`+
+              `MonthOfDeath=8`+`MonthOfDeath=9`+`MonthOfDeath=10`+
+              `MonthOfDeath=11`+`MonthOfDeath=12`+
+              `MethodOfDisposition=C`+`MethodOfDisposition=D`+
+              `MethodOfDisposition=E`+`MethodOfDisposition=O`+
+              `MethodOfDisposition=R`+`MethodOfDisposition=U`+
+              `Autopsy=N`+`Autopsy=Y`+
+              `ActivityCode`+`PlaceOfInjury=0`+
+              `PlaceOfInjury=1`+`PlaceOfInjury=2`+
+              `PlaceOfInjury=3`+`PlaceOfInjury=4`+
+              `PlaceOfInjury=5`+`PlaceOfInjury=6`+
+              `PlaceOfInjury=7`+`PlaceOfInjury=8`+
+              `Icd10Code=C349`+`Icd10Code=F329`+
+              `Icd10Code=K767`+`Icd10Code=V030`+
+              `Icd10Code=V476`+`Icd10Code=W10`+
+              `Icd10Code=W13`+`Icd10Code=W17`+
+              `Icd10Code=W18`+`Icd10Code=W20`+
+              `Icd10Code=W29`+`Icd10Code=W32`+
+              `Icd10Code=W50`+`Icd10Code=W65`+
+              `Icd10Code=W67`+`Icd10Code=W69`+
+              `Icd10Code=W73`+`Icd10Code=W74`+
+              `Icd10Code=W78`+`Icd10Code=W79`+
+              `Icd10Code=W80`+`Icd10Code=W84`+
+              `Icd10Code=X00`+`Icd10Code=X09`+
+              `Icd10Code=X16`+`Icd10Code=X41`+
+              `Icd10Code=X42`+`Icd10Code=X44`+
+              `Icd10Code=X47`+`Icd10Code=X599`+
+              `Icd10Code=X60`+`Icd10Code=X61`+
+              `Icd10Code=X62`+`Icd10Code=X63`+
+              `Icd10Code=X64`+`Icd10Code=X65`+
+              `Icd10Code=X66`+`Icd10Code=X67`+
+              `Icd10Code=X68`+`Icd10Code=X69`+
+              `Icd10Code=X70`+`Icd10Code=X71`+
+              `Icd10Code=X72`+`Icd10Code=X73`+
+              `Icd10Code=X74`+`Icd10Code=X75`+
+              `Icd10Code=X76`+`Icd10Code=X78`+
+              `Icd10Code=X79`+`Icd10Code=X80`+
+              `Icd10Code=X81`+`Icd10Code=X82`+
+              `Icd10Code=X83`+`Icd10Code=X84`+
+              `Icd10Code=X85`+`Icd10Code=X88`+
+              `Icd10Code=X89`+`Icd10Code=X90`+
+              `Icd10Code=X91`+`Icd10Code=X92`+
+              `Icd10Code=X93`+`Icd10Code=X94`+
+              `Icd10Code=X95`+`Icd10Code=X96`+
+              `Icd10Code=X97`+`Icd10Code=X98`+
+              `Icd10Code=X99`+`Icd10Code=Y00`+
+              `Icd10Code=Y01`+`Icd10Code=Y02`+
+              `Icd10Code=Y03`+`Icd10Code=Y04`+
+              `Icd10Code=Y05`+`Icd10Code=Y08`+
+              `Icd10Code=Y09`+`NumberOfEntityAxisConditions`+
+              `NumberOfRecordAxisConditions`+`Race=1`+
+              `Race=2`+`Race=3`+
+              `Race=4`+`Race=5`+
+              `Race=6`+`Race=7`+
+              `Race=18`+`Race=28`+
+              `Race=38`+`Race=48`+
+              `Race=58`+`Race=68`+
+              `Race=78`,family=binomial(link='logit'))
+
+summary(myglm)
+#----------------
+#We will ignore some of the vairables:
+new_myglm_first = glm(data =murder_suicide_levels,
+                 formula = Suicide ~ `Age`+
+                `ResidentStatus=1` + `ResidentStatus=2` +
+                `ResidentStatus=3` + `Sex=F` + `Sex=M`+ `Education2003Revision=1` +
+                `Education2003Revision=2` + `Education2003Revision=3` + `Education2003Revision=4` + 
+                `Education2003Revision=5` + `Education2003Revision=6` + `Education2003Revision=7` +
+                 `Autopsy=N`+`Autopsy=Y`+
+                  `DayOfWeekOfDeath=1`+`DayOfWeekOfDeath=2`+
+                  `DayOfWeekOfDeath=3`+`DayOfWeekOfDeath=4`+`DayOfWeekOfDeath=5`+
+                  `MonthOfDeath=1` +
+                  `MonthOfDeath=2`+`MonthOfDeath=3`+`MonthOfDeath=4`+
+                  `MonthOfDeath=5`+`MonthOfDeath=6`+`MonthOfDeath=7`+
+                  `MonthOfDeath=8`+`MonthOfDeath=9`+`MonthOfDeath=10`+
+                  `MonthOfDeath=11`+`MonthOfDeath=12`+
+                `PlaceOfDeathAndDecedentsStatus=1` +
+                `PlaceOfDeathAndDecedentsStatus=2` +
+                `PlaceOfDeathAndDecedentsStatus=3` +
+                `PlaceOfDeathAndDecedentsStatus=4` +
+                `PlaceOfDeathAndDecedentsStatus=5` +
+                `PlaceOfDeathAndDecedentsStatus=6` +
+                `MaritalStatus=D` + `MaritalStatus=M` +
+                `MaritalStatus=S` +  `InjuryAtWork=N` +
+                `MethodOfDisposition=B` +
+                `MethodOfDisposition=C` + `Autopsy=N` +
+                `PlaceOfInjury=0` + `PlaceOfInjury=1` +
+                `PlaceOfInjury=2` + `PlaceOfInjury=3` +
+                `PlaceOfInjury=4` + `PlaceOfInjury=5` +
+                `PlaceOfInjury=6` + `PlaceOfInjury=7` +
+                `Race=1` + `Race=2` + `Race=3` + `Race=4` +
+                `Race=5` + `Race=6` + `Race=7` + `Race=18` +
+                `Race=28` + `Race=38` + `Race=48` + `Race=58` +
+                `Race=68` + `NumberOfEntityAxisConditions`+
+                `NumberOfRecordAxisConditions`,
+                family = binomial(link = 'logit'))
+
+summary(new_myglm_first)
+#----------------
+#Now we will take the most significants (the ones with low p values):
+new_myglm_second = glm(data =murder_suicide_levels,
+                      formula = Suicide ~ `Age`+
+                        `ResidentStatus=2` +
+                        `ResidentStatus=3` + `Sex=F` +
+                        `Education2003Revision=1` +
+                        `Education2003Revision=2` + 
+                        `Education2003Revision=3` + 
+                        `Education2003Revision=6` + 
+                        `Education2003Revision=7` +
+                        `Autopsy=N`+
+                        `PlaceOfDeathAndDecedentsStatus=1` +
+                        `PlaceOfDeathAndDecedentsStatus=2` +
+                        `PlaceOfDeathAndDecedentsStatus=3` +
+                        `PlaceOfDeathAndDecedentsStatus=4` +
+                        `PlaceOfDeathAndDecedentsStatus=5` +
+                        `PlaceOfDeathAndDecedentsStatus=6` +
+                        `MaritalStatus=M` + `InjuryAtWork=N` +
+                        `MonthOfDeath=4` + `MonthOfDeath=2`+
+                        `DayOfWeekOfDeath=5`+ `DayOfWeekOfDeath=4` +`DayOfWeekOfDeath=3`+ `DayOfWeekOfDeath=2`+
+                        `MethodOfDisposition=C` + `Autopsy=N` +
+                        `PlaceOfInjury=1` +
+                        `PlaceOfInjury=4` + 
+                        `PlaceOfInjury=6` + `Race=2`  + `NumberOfEntityAxisConditions`+
+                        `NumberOfRecordAxisConditions`,
+                      family = binomial(link = 'logit'))
+
+summary(new_myglm_second)
+#----------------
+
+```
+
+
+## Question 4:
+Using the ``glm.diag.plots`` function we can plot the four necessary plots of any ``glm`` model. Which are the ``Residual vs fitted`` graph, ``Normal-QQ`` plot, ``Residual vs Fitted`` and ``Scale-Location`` plot.  
+
+
+``Normal QQ``(Upper right): The errors must have a specific distribution. With Normal QQ we can check this assumption. If many of the points are not on the line therefore this assumption is not good and our model is not that much good.  
+
+
+``Residual vs Fitted``(Upper left): This graph tells us  how errors change with changing the main variables. the errors change with changing main variables. Our assumption is that it must not change dramatically.  
+
+``Scale-Location``(Lower left): plot can help us identify heteroscedasticity.  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Question 4:
+library(boot)
+q =glm.diag.plots(new_myglm_second, 
+                  glmdiag = glm.diag(new_myglm_second),
+                  labels=NULL)
+q
+```
+
+
+# Question 5:
+We will use our final model to ``Train`` our model and ``Test`` it with the other values. We used the given definitions:
+
+P: positive samples  
+N: negative samples  
+TP: true positive TP (eqv. with hit)  
+TN: true negative (eqv. with correct rejection)    
+FP: false positive (eqv. with false alarm, Type I error)  
+FN: false negative (eqv. with miss, Type II error)  
+Accuracy (ACC) ACC = (TP+TN)/(P+T)  
+False positive rate (FPR): 1- TN/N  
+True positive rate (TPR): TP/P  
+
+```{r}
+#HW 07:
+#Question 5:
+library(dplyr)
+library(data.table)
+#----------------
+# 80 percent for train and 20 percent for Test:
+Train <- sample_frac(murder_suicide_levels,
+                     size = 0.8, 
+                     replace =FALSE)
+sid<-as.numeric(rownames(Train))
+Test<-murder_suicide_levels[-sid,]
+
+#----------------
+#Train our model:
+new_myglm_second_train = glm(data = Train,
+                Suicide ~ `Age`+
+                  `ResidentStatus=2` +
+                  `ResidentStatus=3` + `Sex=F` +
+                  `Education2003Revision=1` +
+                  `Education2003Revision=2` + 
+                  `Education2003Revision=3` + 
+                  `Education2003Revision=6` + 
+                  `Education2003Revision=7` +
+                  `Autopsy=N`+
+                  `PlaceOfDeathAndDecedentsStatus=1` +
+                  `PlaceOfDeathAndDecedentsStatus=2` +
+                  `PlaceOfDeathAndDecedentsStatus=3` +
+                  `PlaceOfDeathAndDecedentsStatus=4` +
+                  `PlaceOfDeathAndDecedentsStatus=5` +
+                  `PlaceOfDeathAndDecedentsStatus=6` +
+                  `MaritalStatus=M` + `InjuryAtWork=N` +
+                  `MonthOfDeath=4` + `MonthOfDeath=2`+
+                  `DayOfWeekOfDeath=5`+ `DayOfWeekOfDeath=4` +`DayOfWeekOfDeath=3`+ `DayOfWeekOfDeath=2`+
+                  `MethodOfDisposition=C` + `Autopsy=N` +
+                  `PlaceOfInjury=1` +
+                  `PlaceOfInjury=4` + 
+                  `PlaceOfInjury=6` + `Race=2`  + `NumberOfEntityAxisConditions`+
+                  `NumberOfRecordAxisConditions`,
+                  family = binomial(link = 'logit'))
+
+#----------------
+#Predicting:
+new_predict = predict(new_myglm_second_train,Test,type="response" )
+#----------------
+#Combining:
+Test %>% 
+  mutate(Predicted =new_predict ) -> Test
+#----------------
+#Using the function:
+ConfusionMatrixInfo <- function( data, predict, actual, cutoff )
+{   
+  # extract the column ;
+  # relevel making 1 appears on the more commonly seen position in 
+  # a two by two confusion matrix   
+  predict <- data[[predict]]
+  actual  <- relevel( as.factor(data[[actual]]), "1")
+  result <- data.table( actual = actual, predict = predict )
+  
+  # caculating each pred falls into which category for the confusion matrix
+  result[ , type := ifelse( predict >= cutoff & actual == 1, "TP",
+                            ifelse( predict >= cutoff & actual == 0, "FP", 
+                                    ifelse( predict <  cutoff & actual == 1, "FN", "TN" ) ) ) %>% as.factor() ]
+  
+  # jittering : can spread the points along the x axis 
+  plot <- ggplot( result, aes( actual, predict, color = type ) ) + 
+    geom_violin( fill = "white", color = NA ) +
+    geom_jitter( shape = 1 , alpha = 0.2) + 
+    geom_hline( yintercept = cutoff, color = "blue", alpha = 0.6 ) + 
+    scale_y_continuous( limits = c( 0, 1 ) ) + 
+    scale_color_discrete( breaks = c( "TP", "FN", "FP", "TN" ) ) + # ordering of the legend 
+    guides( col = guide_legend( nrow = 2 ) ) + # adjust the legend to have two rows  
+    ggtitle( sprintf( "Confusion Matrix with Cutoff at %.2f", cutoff ) )
+  
+  return( list( data = result, plot = plot ) )
+}
+#----------------
+#CM:
+Test <- as.data.frame(Test)
+
+cm_info = ConfusionMatrixInfo( data = Test, predict = "Predicted", 
+                               actual = "Suicide", cutoff = .5 )
+
+cm_info$plot
+#----------------
+temp = cm_info$data
+#We will use the given definitions to find the values:
+TP = sum(temp$type == "TP")
+TN = sum(temp$type == "TN")
+FP = sum(temp$type == "FP")
+FN = sum(temp$type == "FN")
+n = nrow(Test)
+ACC = (TP+TN)/n
+N = TN+FN 
+
+FPR = FP/N
+TPR = TP/N
+P = TP+FP
+
+TP
+TN
+FP
+FN
+ACC
+FPR
+TPR
+P
+N
+
+
+#----------------
+
+```
+
+
+
+## Question 6:
+Using our definition of accuracy we will have this:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(ROCR)
+library(grid)
+library(caret)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(gridExtra)
+library(data.table)
+library(tidyr)
+library(e1071)
+#----------------
+# Our function:
+AccuracyCutoffInfo <- function( train, test, predict, actual )
+{
+  # change the cutoff value's range as you please 
+  cutoff <- seq( .25, .75, by = .01 )
+  
+  
+  accuracy <- lapply( cutoff, function(c)
+  {
+    r1= as.factor( train[[predict]] > c )
+    levels(r1) = c("0","1")
+    r2= as.factor( test[[predict]] > c )
+    levels(r2) = c("0","1")
+    # use the confusionMatrix from the caret package
+    cm_train <- confusionMatrix(r1, as.factor(train[[actual]]) )
+    cm_test  <- confusionMatrix(r2, as.factor(test[[actual]])  )
+    
+    dt <- data.table( cutoff = c,
+                      train  = cm_train$overall[["Accuracy"]],
+                      test   = cm_test$overall[["Accuracy"]] )
+    return(dt)
+  }) %>% rbindlist()
+  
+  # visualize the accuracy of the train and test set for different cutoff value 
+  # accuracy in percentage.
+  accuracy_long <- gather( accuracy, "data", "accuracy", -1 )
+  
+  plot <- ggplot( accuracy_long, aes( cutoff, accuracy, group = data, color = data ) ) + 
+    geom_line( size = 1 ) + geom_point( size = 3 ) +
+    scale_y_continuous( label = percent ) +
+    ggtitle( "Train/Test Accuracy for Different Cutoff" )
+  
+  return( list( data = accuracy, plot = plot ) )
+}
+#----------------
+#Prediction for train dataset:
+acc_predicted = predict(new_myglm_second , Train , type="response")
+Train$Predicted = acc_predicted
+
+#----------------
+#Finding accuracy:
+
+accuracy_new = AccuracyCutoffInfo( train = Train, 
+                                   test = Test, 
+                                   predict = "Predicted",
+                                   actual = "Suicide" )
+#Plotting:
+accuracy_new$plot
+
+#----------------
+#Cuttoff for train:
+temp_data = accuracy_new$data
+max_train =max(temp_data[,2])
+index_train =which(temp_data[,2]==max_train)
+cutt_off_train = temp_data[index_train,1]
+cutt_off_train
+
+#Cuttoff for Test:
+max_test =max(temp_data[,3])
+index_test =which(temp_data[,3]==max_test)
+cutt_off_test = temp_data[index_test,1]
+cutt_off_test
+#----------------
+
+```
+
+
+## Question 7: 
+We will find the ROC curve as given with this function:
+
+```{r}
+#----------------
+# Our function:
+
+ROCInfo <- function( data, predict, actual, cost.fp, cost.fn )
+{
+  # calculate the values using the ROCR library
+  # true positive, false postive 
+  pred <- prediction( data[[predict]], data[[actual]] )
+  perf <- performance( pred, "tpr", "fpr" )
+  roc_dt <- data.frame( fpr = perf@x.values[[1]], tpr = perf@y.values[[1]] )
+  
+  # cost with the specified false positive and false negative cost 
+  # false postive rate * number of negative instances * false positive cost + 
+  # false negative rate * number of positive instances * false negative cost
+  cost <- perf@x.values[[1]] * cost.fp * sum( data[[actual]] == 0 ) + 
+    ( 1 - perf@y.values[[1]] ) * cost.fn * sum( data[[actual]] == 1 )
+  
+  cost_dt <- data.frame( cutoff = pred@cutoffs[[1]], cost = cost )
+  
+  # optimal cutoff value, and the corresponding true positive and false positive rate
+  best_index  <- which.min(cost)
+  best_cost   <- cost_dt[ best_index, "cost" ]
+  best_tpr    <- roc_dt[ best_index, "tpr" ]
+  best_fpr    <- roc_dt[ best_index, "fpr" ]
+  best_cutoff <- pred@cutoffs[[1]][ best_index ]
+  
+  # area under the curve
+  auc <- performance( pred, "auc" )@y.values[[1]]
+  
+  # normalize the cost to assign colors to 1
+  normalize <- function(v) ( v - min(v) ) / diff( range(v) )
+  
+  # create color from a palette to assign to the 100 generated threshold between 0 ~ 1
+  # then normalize each cost and assign colors to it, the higher the blacker
+  # don't times it by 100, there will be 0 in the vector
+  col_ramp <- colorRampPalette( c( "green", "orange", "red", "black" ) )(100)   
+  col_by_cost <- col_ramp[ ceiling( normalize(cost) * 99 ) + 1 ]
+  
+  roc_plot <- ggplot( roc_dt, aes( fpr, tpr ) ) + 
+    geom_line( color = rgb( 0, 0, 1, alpha = 0.3 ) ) +
+    geom_point( color = col_by_cost, size = 4, alpha = 0.2 ) + 
+    geom_segment( aes( x = 0, y = 0, xend = 1, yend = 1 ), alpha = 0.8, color = "royalblue" ) + 
+    labs( title = "ROC", x = "False Postive Rate", y = "True Positive Rate" ) +
+    geom_hline( yintercept = best_tpr, alpha = 0.8, linetype = "dashed", color = "steelblue4" ) +
+    geom_vline( xintercept = best_fpr, alpha = 0.8, linetype = "dashed", color = "steelblue4" )             
+  
+  cost_plot <- ggplot( cost_dt, aes( cutoff, cost ) ) +
+    geom_line( color = "blue", alpha = 0.5 ) +
+    geom_point( color = col_by_cost, size = 4, alpha = 0.5 ) +
+    ggtitle( "Cost" ) +
+    scale_y_continuous( labels = comma ) +
+    geom_vline( xintercept = best_cutoff, alpha = 0.8, linetype = "dashed", color = "steelblue4" )  
+  
+  # the main title for the two arranged plot
+  sub_title <- sprintf( "Cutoff at %f - Total Cost = %f, AUC = %f", 
+                        best_cutoff, best_cost, auc )
+  
+  # arranged into a side by side plot
+  plot <- arrangeGrob( roc_plot, cost_plot, ncol = 2, 
+                       top = textGrob( sub_title, gp = gpar( fontsize = 16, fontface = "bold" ) ) )
+  
+  return( list( plot          = plot, 
+                cutoff    = best_cutoff, 
+                totalcost   = best_cost, 
+                auc         = auc,
+                sensitivity = best_tpr, 
+                specificity = 1 - best_fpr ) )
+}
+
+#----------------
+# We assume that FN costs more than FP:
+cost_fp = 100 
+cost_fn = 200
+roc_info = ROCInfo( data = cm_info$data , predict = "predict", 
+                    actual = "actual", cost.fp = cost_fp, cost.fn = cost_fn )
+grid.draw(roc_info$plot)
+```
+
+
+## Question 8:
+We will check how our model is different than that of ``h2o``:
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+library(h2o)
+
+murder_suicide = read.csv("/Users/shervin/Desktop/Data Analysis/HW7/data 2/murder_suicide.csv")
+#----------------
+# Columns which are not redundant:
+not.redundant = c("Age",
+                  "ResidentStatus",
+                  "Education2003Revision",
+                  "MonthOfDeath",
+                  "Sex",
+                  "AgeType",
+                  "PlaceOfDeathAndDecedentsStatus",
+                  "MaritalStatus",
+                  "DayOfWeekOfDeath",
+                  "InjuryAtWork",
+                  "MannerOfDeath",
+                  "MethodOfDisposition",
+                  "Autopsy",
+                  "ActivityCode",
+                  "PlaceOfInjury",
+                  "Icd10Code",
+                  "NumberOfEntityAxisConditions",
+                  "NumberOfRecordAxisConditions",
+                  "Race"
+)
+murder_suicide = murder_suicide[,not.redundant]
+murder_suicide %>% 
+  filter(Education2003Revision!=9,
+         PlaceOfInjury!=99,
+         PlaceOfDeathAndDecedentsStatus!=9,
+         MaritalStatus!="U",
+         InjuryAtWork!="U",
+         DayOfWeekOfDeath!=9,
+         Autopsy!="U", ActivityCode!=99,
+         PlaceOfInjury!=9) -> murder_suicide
+
+
+
+murder_suicide$Sex <- factor(murder_suicide$Sex)
+murder_suicide$MaritalStatus <- factor(murder_suicide$MaritalStatus)
+murder_suicide$InjuryAtWork <- factor(murder_suicide$InjuryAtWork)
+murder_suicide$MethodOfDisposition <- factor(murder_suicide$MethodOfDisposition)
+murder_suicide$Autopsy <- factor(murder_suicide$Autopsy)
+murder_suicide$PlaceOfInjury <- factor(murder_suicide$PlaceOfInjury)
+murder_suicide$Icd10Code <-factor(murder_suicide$Icd10Code)
+murder_suicide$ResidentStatus <- factor(murder_suicide$ResidentStatus)
+murder_suicide$Education2003Revision <- factor(murder_suicide$Education2003Revision)
+murder_suicide$PlaceOfDeathAndDecedentsStatus <- factor(murder_suicide$PlaceOfDeathAndDecedentsStatus)
+murder_suicide$Race <-factor(murder_suicide$Race)
+murder_suicide$MonthOfDeath <-factor(murder_suicide$MonthOfDeath)
+murder_suicide$DayOfWeekOfDeath <-factor(murder_suicide$DayOfWeekOfDeath)
+
+
+h2o.init()
+h2o_murder_suicide = as.h2o(murder_suicide)
+  
+  
+chglm = h2o.glm(y = "Suicide", 
+                x=c( "Age",
+                  "ResidentStatus=1" , "ResidentStatus=2" ,
+                  "ResidentStatus=3" , "Sex=F" , "Sex=M", "Education2003Revision=1" ,
+                  "Education2003Revision=2" , "Education2003Revision=3" , "Education2003Revision=4" , 
+                  "Education2003Revision=5" , "Education2003Revision=6" , "Education2003Revision=7" ,
+                  "Autopsy=N","Autopsy=Y",
+                  "DayOfWeekOfDeath=1","DayOfWeekOfDeath=2",
+                  "DayOfWeekOfDeath=3","DayOfWeekOfDeath=4","DayOfWeekOfDeath=5",
+                  "MonthOfDeath=1" ,
+                  "MonthOfDeath=2","MonthOfDeath=3","MonthOfDeath=4",
+                  "MonthOfDeath=5","MonthOfDeath=6","MonthOfDeath=7",
+                  "MonthOfDeath=8","MonthOfDeath=9","MonthOfDeath=10",
+                  "MonthOfDeath=11","MonthOfDeath=12",
+                  "PlaceOfDeathAndDecedentsStatus=1" ,
+                  "PlaceOfDeathAndDecedentsStatus=2" ,
+                  "PlaceOfDeathAndDecedentsStatus=3" ,
+                  "PlaceOfDeathAndDecedentsStatus=4" ,
+                  "PlaceOfDeathAndDecedentsStatus=5" ,
+                  "PlaceOfDeathAndDecedentsStatus=6" ,
+                  "MaritalStatus=D" , "MaritalStatus=M" ,
+                  "MaritalStatus=S" ,  "InjuryAtWork=N" ,
+                  "MethodOfDisposition=B" ,
+                  "MethodOfDisposition=C" , "Autopsy=N" ,
+                  "PlaceOfInjury=0" , "PlaceOfInjury=1" ,
+                  "PlaceOfInjury=2" , "PlaceOfInjury=3" ,
+                  "PlaceOfInjury=4" , "PlaceOfInjury=5" ,
+                  "PlaceOfInjury=6" , "PlaceOfInjury=7" ,
+                  "Race=1" , "Race=2" , "Race=3" , "Race=4" ,
+                  "Race=5" , "Race=6" , "Race=7" , "Race=18" ,
+                  "Race=28" , "Race=38" , "Race=48" , "Race=58" ,
+                  "Race=68" , "NumberOfEntityAxisConditions",
+                  "NumberOfRecordAxisConditions"),
+                training_frame = h2o_murder_suicide, 
+                family="binomial",nfolds = 5)
+
+
+chglm
+```
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+## Model Details:
+## ==============
+## 
+## H2OBinomialModel: glm
+## Model ID:  GLM_model_R_1524746853938_142 
+## GLM Model: summary
+##     family  link                                regularization
+## 1 binomial logit Elastic Net (alpha = 0.5, lambda = 4.533E-4 )
+##   number_of_predictors_total number_of_active_predictors
+## 1                         82                          76
+##   number_of_iterations training_frame
+## 1                    7   murder_suicide
+## 
+## Coefficients: glm coefficients
+##              names coefficients standardized_coefficients
+## 1        Intercept    -7.902374                  2.116615
+## 2 ResidentStatus=1    -0.127006                 -0.045435
+## 3 ResidentStatus=2     0.122885                  0.037470
+## 4 ResidentStatus=3     0.214120                  0.044522
+## 5      Education=1    -0.907545                 -0.199459
+## 
+## ---
+##      names coefficients standardized_coefficients
+## 78 death=C     6.588162                  0.031201
+## 79 death=F     2.766035                  0.013100
+## 80 death=K     5.672130                  0.026863
+## 81 death=V     0.000000                  0.000000
+## 82 death=W     9.976788                  0.337239
+## 83 death=X     7.484935                  1.298133
+## 
+## H2OBinomialMetrics: glm
+## ** Reported on training data. **
+## 
+## MSE:  0.08524954
+## RMSE:  0.2919752
+## LogLoss:  0.2776208
+## Mean Per-Class Error:  0.1974725
+## AUC:  0.9304067
+## Gini:  0.8608134
+## R^2:  0.5544835
+## Residual Deviance:  24755.45
+## AIC:  24909.45
+## 
+## Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+##           0     1    Error         Rate
+## 0      7348  4147 0.360766  =4147/11495
+## 1      1131 31959 0.034180  =1131/33090
+## Totals 8479 36106 0.118381  =5278/44585
+## 
+## Maximum Metrics: Maximum metrics at their respective thresholds
+##                         metric threshold    value idx
+## 1                       max f1  0.408999 0.923724 262
+## 2                       max f2  0.198582 0.957230 325
+## 3                 max f0point5  0.727483 0.921726 156
+## 4                 max accuracy  0.512912 0.883795 231
+## 5                max precision  0.999252 0.998771   0
+## 6                   max recall  0.015589 1.000000 391
+## 7              max specificity  0.999252 0.999913   0
+## 8             max absolute_mcc  0.540604 0.685437 223
+## 9   max min_per_class_accuracy  0.760736 0.847412 142
+## 10 max mean_per_class_accuracy  0.727483 0.848850 156
+## 
+## Gains/Lift Table: Extract with `h2o.gainsLift(<model>, <data>)` or `h2o.gainsLift(<model>, valid=<T/F>, xval=<T/F>)`
+## 
+## H2OBinomialMetrics: glm
+## ** Reported on cross-validation data. **
+## ** 5-fold cross-validation on training data (Metrics computed for combined holdout predictions) **
+## 
+## MSE:  0.0858874
+## RMSE:  0.2930655
+## LogLoss:  0.2795902
+## Mean Per-Class Error:  0.1851008
+## AUC:  0.9293164
+## Gini:  0.8586327
+## R^2:  0.55115
+## Residual Deviance:  24931.06
+## AIC:  25079.06
+## 
+## Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
+##           0     1    Error         Rate
+## 0      7762  3733 0.324750  =3733/11495
+## 1      1504 31586 0.045452  =1504/33090
+## Totals 9266 35319 0.117461  =5237/44585
+## 
+## Maximum Metrics: Maximum metrics at their respective thresholds
+##                         metric threshold    value idx
+## 1                       max f1  0.470931 0.923446 239
+## 2                       max f2  0.215360 0.956950 315
+## 3                 max f0point5  0.724801 0.921078 156
+## 4                 max accuracy  0.521473 0.882831 225
+## 5                max precision  0.998685 0.997562   1
+## 6                   max recall  0.016305 1.000000 392
+## 7              max specificity  0.999192 0.999739   0
+## 8             max absolute_mcc  0.524839 0.682760 224
+## 9   max min_per_class_accuracy  0.762620 0.845966 141
+## 10 max mean_per_class_accuracy  0.724801 0.847639 156
+## 
+## Gains/Lift Table: Extract with `h2o.gainsLift(<model>, <data>)` or `h2o.gainsLift(<model>, valid=<T/F>, xval=<T/F>)`
+## Cross-Validation Metrics Summary: 
+##                  mean           sd cv_1_valid cv_2_valid cv_3_valid
+## accuracy    0.8833092  0.001101758 0.88622624 0.88186413  0.8820797
+## auc        0.92935437  9.620793E-4 0.92977434 0.92838264  0.9292109
+## err       0.116690844  0.001101758 0.11377377 0.11813588 0.11792026
+## err_count      1040.4     4.349713     1035.0     1052.0     1041.0
+## f0point5   0.90587485 0.0022751244  0.9105638 0.90687346  0.9051573
+##           cv_4_valid cv_5_valid
+## accuracy   0.8832018  0.8831739
+## auc         0.931686 0.92771786
+## err        0.1167982 0.11682611
+## err_count     1036.0     1038.0
+## f0point5   0.9062104 0.90056914
+## 
+## ---
+##                         mean           sd cv_1_valid cv_2_valid cv_3_valid
+## precision         0.89419734 0.0037704506   0.900641  0.8971247  0.8938282
+## r2                0.55107546 0.0025062659  0.5534584  0.5504704  0.5499239
+## recall              0.955946 0.0054129474 0.95254236  0.9480837  0.9534991
+## residual_deviance   4986.212    44.898518   5016.705   5080.463   4991.502
+## rmse               0.2930698  0.001376091 0.29093876   0.295747 0.29496136
+## specificity        0.6737699  0.018797163   0.691609  0.6977929 0.68079585
+##                   cv_4_valid cv_5_valid
+## precision          0.8947668  0.8846259
+## r2                 0.5560182 0.54550654
+## recall            0.95506984 0.97053516
+## residual_deviance   4890.672   4951.718
+## rmse              0.29126856 0.29243332
+## specificity        0.6757231  0.6229288
+
+```
+The Accuracy is 0.88 percent with our ``h2o`` model.
+
+## Question 9:
+No, even though we have a significant accuracy this is not enough. Having a good accuracy is not a validation to give such important tasks to a non human system. The judge may use these information to make better decisions but it cannot take the place of it.   
+
+
+
+
+
