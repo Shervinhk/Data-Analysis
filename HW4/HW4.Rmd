@@ -1,0 +1,748 @@
+---
+title: "HW4"
+author: "Shervin Hakimi"
+date: "3/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1
+In this question we will find the questions related to teachers satisfaction. Afterwards we will find the math questions, we will then make an ANOVA test to see whether these groups have siginificatly different mean statistics. <br />
+We also did a t.test assuming that the levels 1 and 2 are "Satisfied" people and level 3 and 4 are "Unsatisfied". The code and results are as follows:<br />
+We plot the density plot and mean plot using ggplot and high charter.<br />
+We see that the **pvalue** for this proposition is high, therefore we can say that either this proposition is not true, or it is true and our values have a lot of noise. We know that the latter is not correct, therefore we can say that this proposition is not true.<br />
+
+```{r , message=FALSE}
+
+#HW4- q1:
+library(highcharter)
+library(ggplot2)
+library(dplyr)
+#------------------------------------------------------
+timss_teacher = readRDS("/Users/shervin/Downloads/Tims_Data/btm.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+
+#------------------------------------------------------
+#selecting questions and finding the scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])) %>% 
+  select("idschool","Score") -> scores
+#------------------------------------------------------
+#finding mean value of scores in every school:
+  scores %>%  group_by(idschool) %>% 
+  summarise(School_score = sum(Score), n = n()) %>% 
+    mutate(Mean_student = School_score/(5*n)) %>% 
+    select(idschool,Mean_student)  -> Student_score_school
+#------------------------------------------------------
+#binding results:
+
+timss_teacher %>%
+  select(c(2),"btdgtjs") -> check2
+
+  checkaov = cbind(scores[check2$idschool,],check2) 
+  checkaov <- checkaov[,-c(1)]
+  checkaov <- checkaov[,-c(2)]
+#------------------------------------------------------ 
+# Using ANOVA because we have several groups:
+  h = aov(Score ~ as.factor(btdgtjs), data = checkaov)
+  h
+  summary.aov(h)
+#------------------------------------------------------  
+#we will also use t.test if we consider 1,2 one group and 3,4 another group:
+timss_teacher %>%
+  select(c(2),"btdgtjs") %>% 
+  mutate( Satisfied = (btdgtjs==1 | btdgtjs==2 )) ->teacher_raw
+scores = Student_score_school[teacher_raw$idschool,] %>% select(c(2))
+teacher_raw <- teacher_raw %>%  select(c(3))
+results = cbind( teacher_raw ,scores )
+
+hypo = t.test(Mean_student~Satisfied, data = results)
+hypo
+#------------------------------------------------------  
+#ggplot:
+p = ggplot(data = results, aes(x=Mean_student, fill= Satisfied))+
+  geom_density(alpha= 0.4) + 
+  xlab("Satisfaction") +
+  ylab("Density") +
+  ggtitle("Difference of densities") 
+p
+#------------------------------------------------------  
+#highcharter:
+results %>% group_by(Satisfied) %>% 
+  summarise(sum_f = sum(Mean_student ,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum_f/n) %>% 
+  select(Satisfied,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x = as.integer(Satisfied),  y =  Average ),type = "column")
+q
+
+
+
+
+```
+
+##Question 2
+In this question we will try to find whether parents with a higher education have an influence on their children or not. Again we will find the questions related to the education of the parents, we used the math questions results as a standard for student's achievments. <br />
+The progress is the same as question 1, and we will use ANOVA for this question. Again, we can also use t.test if we define education as if levels 1,2 and 3 are "Educated" people and 4,5 and 6 are "Uneducated" people. We can see both of these results. But the main result is for the ANOVA test. <br />
+We ploted the density of the different groups using ggplot and the means of each group using high charter.<br />
+The variable "literate" is our "Education" level.<br />
+As we can see the **pvalue** is very low, therefore as we said before, this means that our proposition that it has no effect is incorrect and this proposition is infact statistically correct.<br />
+
+
+```{r , message=FALSE}
+
+#HW4 - q2:
+library(highcharter)
+library(ggplot2)
+library(dplyr)
+#------------------------------------------------------
+#reading data:
+timss_student_background = readRDS("/Users/shervin/Downloads/Tims_Data/bsg.rds")
+timss_student_background %>% 
+  select("idstud","bsdgedup") -> student_parents
+
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+#------------------------------------------------------
+#selecting questions and getting scores:
+timss_student %>% 
+  select(c("idstud","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(idstud,Score) -> scores
+#------------------------------------------------------
+#parents education:
+scores <- scores %>% select(c(2))
+
+bind_score_parents = cbind( student_parents, scores)
+bind_score_parents <- bind_score_parents %>%  select(c(2,3))
+
+h = aov(Score~as.factor(bsdgedup), data = bind_score_parents)
+h
+summary.aov(h) # is very low so they are not equal
+
+
+
+#-----------------------------------------------------
+# if we make a two group test:
+bind_score_parents %>% mutate(literate = (bsdgedup ==1 |bsdgedup ==2 |bsdgedup ==3)) -> bind_score_parents
+bind_score_parents <- bind_score_parents %>% select(c(2,3))
+hypo = t.test(Score~literate, data = bind_score_parents)
+hypo
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = bind_score_parents, aes(x=Score, fill= literate))+
+  geom_density(alpha= 0.4) + 
+  xlab("Satisfaction") +
+  ylab("Density") +
+  ggtitle("Difference of densities") 
+p
+
+
+#------------------------------------------------------
+#highcharter:
+bind_score_parents %>% group_by(literate) %>% 
+  summarise(sum = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(literate,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(literate) ,y= Average), type="column", name = "scores") 
+q
+
+
+```
+
+##Question 3 
+Description of this questions is the same as the last two questions. <br />
+We will find the question and we will use ANOVA to check our assumption that possesions have an influence on the overall achievment of the students. <br />
+We used the number of digital devices as our main standard. <br />
+The **pvalue** is very low therefore the two means are significanlty therefore, so our assumption that the groups are the same is incorrect and higher possesion will give better achivements. <br />
+"Good_situation"" is our standard for good possesions.<br />
+
+```{r , message=FALSE}
+#HW4-q3:
+library(highcharter)
+library(ggplot2)
+library(dplyr)
+#------------------------------------------------------
+#reading data:
+timss_student_background = readRDS("/Users/shervin/Downloads/Tims_Data/bsg.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+
+
+timss_student_background %>%  
+      select(bsbg05 ) ->student_possesion
+#------------------------------------------------------
+#selecting questions and scores:
+timss_student %>% 
+  select(c("idstud","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(Score) -> scores
+
+#------------------------------------------------------
+#binding and AOV:(this is more correct)
+score_posession <- cbind(scores,student_possesion)
+h = aov(Score ~ bsbg05, data = score_posession)
+h
+summary.aov(h)
+score_posession <- score_posession %>% na.omit() %>% as.data.frame()
+
+
+#------------------------------------------------------
+# if we look at as a two group with ttest:
+score_posession %>%
+  mutate(Good_Situation = (bsbg05 == 1 | bsbg05 == 2 | bsbg05 == 3) ) %>% 
+  select(Good_Situation,Score) ->score_posession
+hypo = t.test(Score~Good_Situation, data = score_posession )
+hypo
+
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = score_posession, aes(x=Score, fill= Good_Situation))+
+  geom_density(alpha= 0.4) + 
+  xlab("Posession") +
+  ylab("Density") +
+  ggtitle("Difference of densities") 
+p
+
+
+
+#------------------------------------------------------
+#highcharter:
+
+score_posession %>% group_by(Good_Situation) %>% 
+  summarise(sum = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(Good_Situation,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(Good_Situation) ,y= Average), type="column", name = "scores") 
+q
+
+
+```
+##Question 4
+We use the question "Descipline" in the BCG quostainare and use the student results to evaluate this assupmtion. <br />
+Using ANOVA, The **pvalue** is very low, therefore our assumption that the groups don't have any significant difference is wrong. <br />
+We plotted the scattering of results vs the level of "Descipline", we also ploted the mean of these values using high charter. <br />
+
+```{r , message=FALSE}
+ 
+#HW4-q4:
+library(highcharter)
+library(ggplot2)
+library(dplyr)
+#------------------------------------------------------
+#reading data:
+timss_school = readRDS("/Users/shervin/Downloads/Tims_Data/bcg.rds")
+
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+
+
+#------------------------------------------------------
+#finding questions and scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  group_by(idschool) %>% 
+  summarise(Total_Score_school = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Mean_score_per_school= Total_Score_school/n) %>% 
+  select(idschool,Mean_score_per_school) -> scores_discipline
+
+
+timss_school %>% 
+  select(idschool,bcdgdas) -> discipline
+#------------------------------------------------------
+#bidning:
+ Q = cbind(scores_discipline[discipline$idschool,],discipline)
+ Q <- Q[,-1]
+ Q <- Q[,-2]
+ Q <- na.omit(Q)
+ Q <- as.data.frame(Q)
+ #------------------------------------------------------
+ #Making AOV test:
+ h = aov(Mean_score_per_school ~ as.factor(bcdgdas), data = Q)
+ h
+ summary.aov(h)
+ #------------------------------------------------------
+#ggplot:
+p = ggplot(data = Q, aes(bcdgdas, Mean_score_per_school, fill = bcdgdas)) +
+   geom_boxplot() + geom_jitter(width = 0.2) +
+   xlab("degree of discipline") +
+   ylab("mean score per school") +
+   ggtitle("degree of discipline vs mean score per school") 
+ p
+ #------------------------------------------------------
+ #highcharter:
+ Q %>% group_by(bcdgdas) %>% 
+   summarise(sum = sum(Mean_score_per_school,na.rm = TRUE), n = n()) %>% 
+   mutate(Average = sum/n) %>% 
+   select(bcdgdas,Average) %>% 
+   na.omit()-> sums
+ 
+ sums <- as.data.frame(sums)
+ 
+ q = hchart(sums, hcaes(x= as.integer(bcdgdas) ,y= Average), type="column", name = "scores") 
+ q
+ 
+ 
+ 
+
+
+```
+
+##Question 5
+We use the question wchih is related to "Experience of the Teacher". <br />
+The procedure is the same as the other questions and because we have several groups, we will use ANOVA. <br /> 
+This assumption has a not a very low **pvalue** therefore our assumption that these groups have the same statistical mean can be correct and the proposotion is not correct.  <br />
+"btbg01" is our value for the number of years a teacher has taught. <br />
+We will plot the boxplot for these years using ggplot and the means with high charter.  <br />
+```{r , message=FALSE}
+#HW4-q5:
+library(highcharter)
+library(ggplot2)
+library(dplyr)
+#------------------------------------------------------
+#reading data:
+timss_teacher = readRDS("/Users/shervin/Downloads/Tims_Data/btm.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+#------------------------------------------------------
+#finding questions and scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(idschool,Score) -> scores
+  scores %>% 
+    group_by(idschool) %>% 
+    summarise(Total_Score_school = sum(Score,na.rm = TRUE), n = n()) %>% 
+    mutate(Mean_score_per_school= Total_Score_school/n) %>% 
+    select(idschool,Mean_score_per_school) -> scores_exp
+  
+#------------------------------------------------------
+#finding teacher experience:
+timss_teacher %>% 
+  select(idschool,btbg01) -> teacher_exp
+
+score_and_experience = cbind(teacher_exp[scores_exp$idschool,] ,scores_exp )
+score_and_experience = as.data.frame(score_and_experience)
+score_and_experience <- score_and_experience[,-1]
+score_and_experience <- score_and_experience[,-2]
+score_and_experience <- na.omit(score_and_experience)
+
+#------------------------------------------------------
+#AOV test because we have several groups:
+h = aov(Mean_score_per_school ~ as.factor(btbg01), data = score_and_experience)
+h
+
+summary.aov(h)
+
+
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = score_and_experience, aes(btbg01, Mean_score_per_school, fill = btbg01)) +
+  geom_boxplot() + geom_jitter(width = 0.2) +
+  xlab("number of year of experience") +
+  ylab("mean score per school") +
+  ggtitle("number of years of experience vs mean score per school") 
+p
+
+#------------------------------------------------------
+#highcharter:
+
+score_and_experience %>% group_by(btbg01) %>% 
+  summarise(sum = sum(Mean_score_per_school,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(btbg01,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(btbg01) ,y= Average), type="column", name = "scores") 
+q
+
+
+```
+##Question 6
+We will check whether boys are better in geometry or not. <br />
+We will use the questions related to geometry and check whether gender has an influence on applyting geomtry questions.<br />
+We use t.test for this question because we only have two groups. <br />
+Our **pvalue** is significant and this means that our assupmtion that both groups ( both genders) have the same mean in scoring geomtry questions is true. <br />
+Therefore the given proposition is not correct.<br />
+We plotted the density of genders using ggplot and the mean using highcharter and ggplot<br />
+```{r , message=FALSE}
+#HW4 - Q6:
+library(ggplot2)
+library(dplyr)
+library(Hmisc)
+library(highcharter)
+#------------------------------------------------------
+#Reading:
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+
+#------------------------------------------------------
+#Finding questions:
+Geom_qu = timss_student[,c(18,34,37,52,65,89,102,103,119,133,134,150,151,163,164,177,178,209,210,221,224) ]
+#------------------------------------------------------
+#background of students:
+timss_student_id = readRDS("/Users/shervin/Downloads/Tims_Data/bsg.rds")
+timss_student_id <- as.data.frame(timss_student_id) 
+timss_student_id_gender <- timss_student_id$itsex
+
+Geom_with_gender =cbind(timss_student_id_gender, Geom_qu)
+
+gender <- Geom_with_gender$timss_student_id_gender
+#------------------------------------------------------
+#correct answers to every question:
+q1 <- as.integer(Geom_with_gender$m042271 ==3)
+q2 <- as.integer(Geom_with_gender$m062183 ==10)
+q3 <- as.integer(Geom_with_gender$m062286 ==20)
+q4 <- as.integer(Geom_with_gender$m052417 ==10)
+q5 <- as.integer(Geom_with_gender$m062245 ==1)
+q6 <- as.integer(Geom_with_gender$m042203 ==3)
+q7 <- as.integer(Geom_with_gender$m052042 ==10)
+q8 <- as.integer(Geom_with_gender$m052047 ==10)
+q9 <- as.integer(Geom_with_gender$m042151 ==10)
+q10 <- as.integer(Geom_with_gender$m062174 ==2)
+q11 <- as.integer(Geom_with_gender$m062244 ==10)
+q12 <- as.integer(Geom_with_gender$m052407 ==1)
+q13 <- as.integer(Geom_with_gender$m052036 ==10)
+q14 <- as.integer(Geom_with_gender$m062040 ==3)
+q15 <- as.integer(Geom_with_gender$m062288 ==20)
+q16 <- as.integer(Geom_with_gender$m052048 ==10)
+q17 <- as.integer(Geom_with_gender$m052039 ==10)
+q18 <- as.integer(Geom_with_gender$m052083 ==3)
+q19 <- as.integer(Geom_with_gender$m052082 ==3)
+q20 <- as.integer(Geom_with_gender$m062250a ==10)
+q21 <- as.integer(Geom_with_gender$m052082 ==1)
+
+
+gender_geom <- cbind(q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18
+      ,q19,q20,q21)
+N = nrow(gender_geom)
+gender_geom <- as.data.frame(gender_geom)
+gender_geom_score = rowSums(gender_geom[1:N,],na.rm = TRUE)
+gender_geom_final = cbind(gender , gender_geom_score)
+gender_geom_final <- as.data.frame(gender_geom_final)
+#------------------------------------------------------
+# we have to groups so we will use t.test:
+hypo = t.test(gender_geom_score~gender, data = gender_geom_final)
+hypo
+#------------------------------------------------------
+#ggplot of means:
+
+gender_geom_final %>% 
+  group_by(gender) %>% 
+  summarise(sum = sum(gender_geom_score,na.rm=TRUE),n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(gender,Average) %>% 
+  na.omit() -> sums-> final_scores
+
+ggplot(gender_geom_final,aes(x = gender_geom_score,fill = gender)) +geom_density(alpha= 0.4)
+
+
+p = ggplot(data = final_scores, aes(x=gender,y=Average )) +
+    geom_bar(stat = "identity") +
+    xlab("Male = 2, Female = 1") +
+    ylab("total number of correct answers") +
+    ggtitle("total number") 
+p
+#------------------------------------------------------
+#highcharter plot of means:
+q = hchart(final_scores, hcaes(x=gender, y = Average), type = "column",name ="total scores")
+q
+
+
+
+```
+##Question 10
+In this question we will first use Iran's code (364) to find the students in Iran, afterwards we will find the questions related to Applying and Reasoning which have 5 different PVs and we will put the mean of these values as the main score. <br />
+We have two groups, therefore we will use t.test.<br />
+The **pvalue** is significant, therefore our assumption that the two groups have close statistical means is correct and the given assumption is wrong.<br />
+We plotted the density using ggplot and the means using high charter<br />
+
+```{r , message=FALSE}
+#HW4-q10:
+library(ggplot2)
+library(highcharter)
+library(dplyr)
+#------------------------------------------------------
+#reading:
+tims_country = readRDS("/Users/shervin/Downloads/Tims_Data/bsr.rds")
+timss_question = readRDS("/Users/shervin/Downloads/Tims_Data/bsg.rds")
+#------------------------------------------------------
+#geting the questions:
+
+timss_question_reapp = timss_question[,c(1,5,350,351,352,353,354,349,348,347,346,345)]
+timss_question_reapp_iran = timss_question_reapp[timss_question_reapp$idcntry ==364,]
+N = ncol(timss_question_reapp_iran)
+timss_question_reapp_iran %>%  select(c(3:N)) -> questions
+Nq = ncol(questions)
+#------------------------------------------------------
+#applying and reassoning questions:
+questions %>%
+  replace(is.na(.), 0) %>%
+  mutate(Reasoning_score = rowSums(.[1:5] ), Applying_score = rowSums(.[6:Nq] ) )  -> scores
+scores %>% select(Reasoning_score) -> reasoning_scores
+scores %>% select(Applying_score) -> applying_scores
+#------------------------------------------------------
+#binding the results:
+reasoning_scores <- cbind(Q ="Reasoning", Score = reasoning_scores/5)
+names(reasoning_scores) <- c("Question_Type","Score")
+
+applying_scores  <- cbind(Q ="Applying", Score = applying_scores/5)
+names(applying_scores) <- c("Question_Type","Score")
+#------------------------------------------------------
+final_scores <- rbind(applying_scores,reasoning_scores)
+#------------------------------------------------------
+#we have two group so we will use t.test:
+hypo = t.test(Score~Question_Type , data =final_scores )
+hypo
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = final_scores, aes(x=Score, fill= Question_Type))+
+    geom_density(alpha= 0.4) + 
+    xlab("Scores") +
+    ylab("Density") +
+    ggtitle("Difference of densities") 
+p
+
+
+final_scores %>% group_by(Question_Type) %>% 
+  summarise(sum = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(Question_Type,Average) %>% 
+  na.omit() -> sums
+
+#highcharter
+
+q = hchart(sums, hcaes(x=Question_Type,y=Average), type="column") 
+q
+
+```
+##1st Proposition 
+**Parents who think math is more important have better acomplished kids (?)**
+We will use the questions which is related to this fact and use the achievment of the students in math to see wheter this assumption is correct or not. <br />
+We have different values for importance for parents, therefore we have to do an ANOVA test. <br />
+As we will see the **pvalue** is significant, therefore the achievments of students that their parents  think that math is more important don't have much difference that those who don't.<br />
+Therfore this assumption is not correct.<br />
+We plotted the density using ggplot and the means using high charter<br />
+
+```{r , message=FALSE}
+#HW4 - 1st Proposition:
+# Parents who think math is more important have better acomplished kids (?)
+#------------------------------------------------------
+#reading data:
+library(ggplot2)
+library(dplyr)
+library(highcharter)
+
+timss_student_background = readRDS("/Users/shervin/Downloads/Tims_Data/bsg.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+#------------------------------------------------------
+#questions and scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(idschool,Score) -> scores
+scores %>% 
+  group_by(idschool) %>% 
+  summarise(Total_Score_school = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Mean_score_per_school= Total_Score_school/n) %>% 
+  select(idschool,Mean_score_per_school) -> scores_parents
+
+timss_student_background %>% 
+  select(idschool,bsbm20h) -> importance_math
+
+importance_and_scores = cbind(importance_math[scores_parents$idschool,],scores_parents)
+importance_and_scores <- as.data.frame(importance_and_scores) 
+importance_and_scores <- na.omit(importance_and_scores)
+importance_and_scores <- importance_and_scores[,-1]
+importance_and_scores <- importance_and_scores[,-2]
+
+h = aov(Mean_score_per_school~as.factor(bsbm20h), data = importance_and_scores)
+h
+summary.aov(h) # it is not mush related pvalue = 0.07
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = importance_and_scores, aes(bsbm20h, Mean_score_per_school, fill = bsbm20h)) +
+  geom_boxplot() + geom_jitter(width = 0.2) +
+  xlab("degrees of agree(4 is least, 1 is most") +
+  ylab("mean score per school") +
+  ggtitle("  mean score per school vs degrees of agree of parents") 
+p
+
+#------------------------------------------------------
+#highcharter:
+
+importance_and_scores %>% group_by(bsbm20h) %>% 
+  summarise(sum = sum(Mean_score_per_school,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(bsbm20h,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(bsbm20h) ,y= Average), type="column", name = "scores") 
+q
+
+
+  
+
+
+
+```
+##2nd Proposition
+**teachers who inspire more, have better achieving students (?)**
+We use the question which gives numerical value to level of inspiration that teachers give and evaluate it with the achievement of students.<br />
+We have more than two groups, therefore we will use ANOVA.<br />
+The **pvalue**  is significant therefore the achievments of students that their teacher inspired them didn't have much difference than does who didn't.<br />
+We plotted the density using ggplot and the means using high charter<br />
+
+```{r , message=FALSE}
+#HW4 - 2nd Proposition
+# teachers who inspire more, have better achieving students (?)
+#------------------------------------------------------
+#reading data:
+library(ggplot2)
+library(dplyr)
+library(highcharter)
+
+timss_school = readRDS("/Users/shervin/Downloads/Tims_Data/bcg.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+#------------------------------------------------------
+#questions and scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(idschool,Score) -> scores
+scores %>% 
+  group_by(idschool) %>% 
+  summarise(Total_Score_school = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Mean_score_per_school= Total_Score_school/n) %>% 
+  select(idschool,Mean_score_per_school) -> scores_inspiring
+
+timss_school %>% 
+  select(idschool,bcbg14e) -> teacher_inspiring
+
+inspiring_and_scores = cbind(teacher_inspiring[scores_inspiring$idschool,],scores_inspiring)
+inspiring_and_scores <- as.data.frame(inspiring_and_scores) 
+inspiring_and_scores <- na.omit(inspiring_and_scores)
+inspiring_and_scores <- inspiring_and_scores[,-1]
+inspiring_and_scores <- inspiring_and_scores[,-2]
+
+h = aov(Mean_score_per_school~as.factor(bcbg14e), data = inspiring_and_scores)
+h
+summary.aov(h) # it is not mush related pvalue = 0.07
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = inspiring_and_scores, aes(bcbg14e, Mean_score_per_school, fill = bcbg14e)) +
+  geom_boxplot() + geom_jitter(width = 0.2) +
+  xlab("degrees of inspiring(4 is least, 1 is most") +
+  ylab("mean score per school") +
+  ggtitle(" mean score per school vs inspiring of teachers") 
+p
+
+#------------------------------------------------------
+#highcharter:
+
+inspiring_and_scores %>% group_by(bcbg14e) %>% 
+  summarise(sum = sum(Mean_score_per_school,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(bcbg14e,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(bcbg14e) ,y= Average), type="column", name = "scores") 
+q
+
+
+
+
+
+
+```
+##3rd Proposition
+**Schools with Better Heating systems have better achiving students (?)**
+We will use "Heating Systems" question and check the values with the achiements. <br />
+We have more than two groups, therefore we will use ANOVA.<br />
+The **pvalue**  is significant therefore the achievments of students that have better heating systems didn't have much difference than does who didn't.<br />
+We plotted the density using ggplot and the means using high charter<br />
+
+
+```{r , message=FALSE}
+#HW4 - 3rd Proposition
+#Schools with Better Heating systems have better achiving students (?)
+#------------------------------------------------------
+#reading data:
+library(ggplot2)
+library(dplyr)
+library(highcharter)
+
+timss_school = readRDS("/Users/shervin/Downloads/Tims_Data/bcg.rds")
+timss_student = readRDS("/Users/shervin/Downloads/Tims_Data/bsa.rds")
+#------------------------------------------------------
+#questions and scores:
+timss_student %>% 
+  select(c("idschool","bsmmat01","bsmmat02","bsmmat03","bsmmat04","bsmmat05")) %>% 
+  mutate(Score = rowSums(.[2:6])/5) %>% 
+  select(idschool,Score) -> scores
+scores %>% 
+  group_by(idschool) %>% 
+  summarise(Total_Score_school = sum(Score,na.rm = TRUE), n = n()) %>% 
+  mutate(Mean_score_per_school= Total_Score_school/n) %>% 
+  select(idschool,Mean_score_per_school) -> scores_heating
+
+timss_school %>% 
+  select(idschool,bcbg13ad) -> heating_system
+
+heating_and_scores = cbind(heating_system[scores_heating$idschool,],scores_heating)
+heating_and_scores <- as.data.frame(heating_and_scores) 
+heating_and_scores <- na.omit(heating_and_scores)
+heating_and_scores <- heating_and_scores[,-1]
+heating_and_scores <- heating_and_scores[,-2]
+
+h = aov(Mean_score_per_school~as.factor(bcbg13ad), data = heating_and_scores)
+h
+summary.aov(h) # it is not mush related pvalue = 0.07
+#------------------------------------------------------
+#ggplot:
+p = ggplot(data = heating_and_scores, aes(bcbg13ad, Mean_score_per_school, fill = bcbg13ad)) +
+  geom_boxplot() + geom_jitter(width = 0.2) +
+  xlab("degrees of heating(4 is alot, 1 is not at all") +
+  ylab("mean score per school") +
+  ggtitle(" mean score per school vs heating systems") 
+p
+
+#------------------------------------------------------
+#highcharter:
+
+heating_and_scores %>% group_by(bcbg13ad) %>% 
+  summarise(sum = sum(Mean_score_per_school,na.rm = TRUE), n = n()) %>% 
+  mutate(Average = sum/n) %>% 
+  select(bcbg13ad,Average) %>% 
+  na.omit()-> sums
+
+sums <- as.data.frame(sums)
+
+q = hchart(sums, hcaes(x= as.integer(bcbg13ad) ,y= Average), type="column", name = "scores") 
+q
+
+
+
+
+
+
+```
+
+
