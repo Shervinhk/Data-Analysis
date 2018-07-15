@@ -1,0 +1,1101 @@
+---
+title: "Data Analysis - Home Work 8"
+author: "Shervin Hakimi(93111399)"
+date: "5/3/2018"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1:
+We will use the codes that we've learnt in the class for this question. We will first use the ``gutenbergr`` package to find our ``15`` books. then we will lower the cases and count the frequency of the words.  
+But first we will declare our needed ``libraries``.
+```{r message=FALSE, warning=FALSE}
+#Required Packages:
+library(ggplot2)
+library(stringr)
+library(wordcloud)
+library(tm)
+library(gutenbergr)
+library(tidytext)
+library(gsubfn)
+library(wordcloud2)
+library(ngram)
+library(dplyr)
+library(highcharter)
+library(SnowballC)
+library(RColorBrewer)
+```
+Now we will run our code to find the mose frequent words in Charles Dickens works:
+```{r cars, message=FALSE, warning=FALSE}
+#HW8-Q1
+
+#---------------------------
+#Finding all the books of Charles Dickens:
+gutenberg_works(author == "Dickens, Charles")
+
+#---------------------------
+#List of books and their names:
+books_list =data.frame(ID= c(580,
+               730,
+               967,
+               700,
+               917,
+               968,
+               821,
+               766,
+               1023,
+               786,
+               963,
+               98,
+               1400,
+               883,
+               564)  ,Name=
+c( "ThePickwickPapers","OliverTwist",
+"NicholasNickleby", "TheOldCuriosityShop","BarnabyRudge","MartinChuzzlewit","DombeyandSon",
+"DavidCopperfield",
+"BleakHouse",
+"HardTimes",
+"LittleDorrit",
+"ATaleofTwoCities",
+"GreatExpectations",
+"OurMutualFriend",
+"TheMysteryofEdwinDrood"))
+
+#---------------------------
+# Using the function that we used in class
+# This function will fitler the stop words and split the books:
+words <- function(i,k)
+{
+  x = gutenberg_download(k)
+  # removing the punctuations:
+  x = x %>% 
+    str_replace_all("\"","") %>% 
+    str_replace_all("[[:punct:]]","") %>% 
+    str_split(pattern = "\\s") %>% 
+    unlist() %>% 
+    table() %>% 
+    as.data.frame(stringsAsFactors = F)
+  colnames(x) = c("word","count")
+  x = x %>%
+    filter(!str_to_lower(word) %in% stop_words$word) %>% #filtering stop words
+    filter(str_length(word)>1) %>% 
+    filter(!str_detect(word,"\\d")) %>%
+    mutate(Book = books_list[i,2]) %>% 
+    arrange(desc(count)) %>% 
+    mutate(proper = !word %in% str_to_lower(word)) 
+   dickens_list = x
+  return(dickens_list)
+}
+
+#---------------------------
+#Binding the books:
+n = length(books_list$ID)
+out = list()
+
+for( i in 1:n)
+{
+out[[i]] = words(i,books_list[i,1])
+}
+dickens = bind_rows(out)
+dickens$word <- tolower(dickens$word)
+
+#---------------------------
+#Sorting: 
+dickens %>% 
+  group_by(word) %>% 
+  summarise(total_count = sum(count)) %>%
+  arrange(desc(total_count))-> dickens_sorted
+dickens_sorted = dickens_sorted[-c(4),]
+
+#---------------------------
+#Plotting the most used words:
+dickens_sorted[1:10,] %>% 
+  hchart("column",hcaes(x = word, y = total_count)) %>% 
+  hc_add_theme(hc_theme_ffx()) %>% 
+  hc_yAxis(title =list(text = "Total Number of Repitions"))
+
+#---------------------------
+```
+
+## Question 2:
+We will use the ``wordcloud2`` package. From the last question we found the top frequent words which are not in the ``stop_words``. We will use the given image in the home work to plot the ``wordcloud`` of the top 200 most frequent words.
+
+
+```{r message=FALSE, warning=FALSE}
+#HW8-Q2:
+
+#---------------------------
+#Sorting:
+dickens_sorted %>% 
+  select(word = word, freq = total_count) -> dickens_sorted_plot
+#---------------------------
+#wordcloud2 library(we will download it again to ensure it plots in rmarkdown)
+library(devtools)
+devtools::install_github("lchiffon/wordcloud2")
+library(wordcloud2)
+#---------------------------
+#Plotting All of them:
+wordcloud2(dickens_sorted_plot,size = 0.2,
+           figPath = "/Users/shervin/Desktop/untitled folder 3/Unknown.png")
+
+#---------------------------
+# The first 200:
+wordworth = dickens_sorted_plot[1:200,]
+wordcloud2(wordworth,size = 0.1,
+            figPath = "/Users/shervin/Desktop/untitled folder 3/Unknown.png")
+
+
+```
+
+## Question 3:
+In this question we will find the main characters by finding all the upper case words and checking whether in the books exists any lower case of these words. If the lower case also exists therefore it is not a character and thus we can exclude them. The remaining words are the characters forename and surname. As we can't have a specific way to differentiate if it is the surname fo forename therefore we may exclude the assumption that we are looking only for the name.Therefore in this question we found the names and the surnames.
+
+```{r message=FALSE, warning=FALSE}
+#HW8-3:
+
+#---------------------------
+#Declaring a function which will find the main characters:
+main_char <- function(i){
+
+value = as.data.frame(out[i]) # "out" from the first question: words of every book
+unique = unique(value)
+unique_lower = unique[grep("^[a-z]", unique$word),] # all the lower case unique words
+
+
+temp = value[grep("^[A-Z]", value$word),]
+temp$word <- tolower(temp$word)
+index =which(temp$word =="sir")
+if(length(index)!=0)
+temp = temp[-index,]
+
+for (k in  1:100)
+{
+  if(temp$word[k] %in% unique_lower$word  )
+    temp = temp[-k,]
+}
+return(temp$word[1:5])
+}
+
+#---------------------------
+#Finding the main characters of the 15 books:
+output = list()
+for ( i in 1:15)
+{
+ output[[i]] = main_char(i)
+}
+main_characters = output
+
+main_characters2 <- sapply(main_characters, tolower)
+
+#---------------------------
+#Finding the number of times the names have come in the books:
+dickens %>%
+  filter(word %in% main_characters2 ) %>% 
+  group_by(Book) %>% 
+  mutate(percent = round(100*count/sum(count))) %>% 
+  hchart("column",hcaes(x = Book, y = percent, group = word)) %>% 
+  hc_add_theme(hc_theme_ffx())
+
+#---------------------------
+
+
+```
+
+
+## Question 4:
+We will use the ``sentiments`` package to find the necessary words. 
+```{r message=FALSE, warning=FALSE}
+#HW8-Q4:
+
+a = list()
+for (i in 1:15)
+{
+  
+  book = out[[i]]
+  book$word <- tolower(book$word)  
+  book %>% group_by(word) %>% 
+    summarise(count = sum(count)) %>% 
+    arrange(desc(count)) -> book_count
+  
+  book_count %>% 
+    mutate( is.sentiment = (word %in% sentiments$word) ) -> book_sentiment
+  
+  book_sentiment %>% 
+    filter(is.sentiment == TRUE) -> book_sentiment
+  row_sentiment = length(book_sentiment$word)
+  
+  for( j in 1:row_sentiment)
+  {
+    book_sentiment$type[j] = sentiments$sentiment[which(
+                             sentiments$word==book_sentiment$word[j])]
+    
+  }
+  book_sentiment = na.omit(book_sentiment)
+  book_sentiment %>% 
+    select(word,count,type) %>% 
+    filter(type == "positive") -> book_sentiment_p
+  
+  book_sentiment %>% 
+    select(word,count,type) %>% 
+    filter(type == "negative") -> book_sentiment_n
+  
+  
+  binding = rbind(book_sentiment_p[1:20,],book_sentiment_n[1:20,])
+   
+  
+  
+  layout(matrix(c(1, 2), nrow=2), heights=c(2, 3))
+par(mar=rep(0, 4))  
+plot.new()
+text(x=0.5, y=0.01, sprintf("Negative vs Positive of the book %s",books_list[i,2]))
+wordcloud(binding$word,binding$count,
+          random.order=FALSE, rot.per=0.1, 
+          ordered.colors=TRUE,
+          colors=brewer.pal(3, "Dark2")[factor(binding$type)],
+          main="Title",
+          scale=c(8,.3))
+name = factor(factor(binding$type),levels(factor(binding$type))[c(2,1)])
+legend("topright",
+       legend = levels(factor(binding$type)),
+       text.col=brewer.pal(8, "Dark2")[unique(name)])
+  
+  book_sentiment %>% 
+    select(word,count,type) %>% 
+    filter( !(type %in% c("negative","positive"))) -> book_sentiment_feel
+  
+  
+  hc_sentiment <- highchart() %>% 
+  hc_add_series(name = "frequency of two words",data = book_sentiment_feel[1:8,],
+                type = "bar",
+                mapping = hcaes(x = word, y = count),
+                colorByPoint = TRUE) %>% 
+  hc_xAxis(title = list(text = "Name of the  Words"),
+           categories = book_sentiment_feel$word) %>% 
+  hc_yAxis(title = list(text = "Frequency")) %>% 
+  hc_title(text =sprintf("Sentiment in %s",books_list[i,2]))
+
+
+
+a[[i]] = hc_sentiment
+  
+}
+
+htmltools::tagList(a)
+
+
+```
+
+
+
+
+
+## Qustion 5:
+In this question question we will define some function to find the negative and positive sentiments and divide the Les Miserables to 200 pieces.
+```{r message=FALSE, warning=FALSE}
+#HW8 -Q5:
+
+#---------------------------
+# Fundning to sentiments of negative and positive:
+sentiments %>% 
+  filter(sentiment ==c("negative")) -> negative_sentiments #negative
+
+sentiments %>% 
+  filter(sentiment ==c("positive")) -> positive_sentiments #positive
+
+#---------------------------
+#Finding works of Victor Hugo:
+Hugo = gutenberg_works(author == "Hugo, Victor")
+
+
+words <- function(i,k)
+{
+  x = gutenberg_download(k)
+  x = x %>% 
+    str_replace_all("\"","") %>% 
+    str_replace_all("[[:punct:]]","") %>% 
+    str_split(pattern = "\\s") %>% 
+    unlist() %>% 
+    table() %>% 
+    as.data.frame(stringsAsFactors = F)
+  colnames(x) = c("word","count")
+  x = x %>%
+    filter(!str_to_lower(word) %in% stop_words$word) %>% 
+    filter(str_length(word)>1) %>% 
+    filter(!str_detect(word,"\\d")) %>%
+    mutate(Book = books_list[i,2]) %>% 
+    arrange(desc(count)) %>% 
+    mutate(proper = !word %in% str_to_lower(word)) 
+   dickens_list = x
+  return(dickens_list)
+}
+#Listing the 5 books of Les Miserables:
+hugo_books_list = c(48731:48735)
+m = length(hugo_books_list)
+check = list()
+for( i in 1:m)
+{
+  check[[i]] = words(i,hugo_books_list[i])
+}
+
+books_split_hugo = list()
+for (i in 1:m)
+{
+h = gutenberg_download(hugo_books_list[i])
+
+books_split_hugo[[i]] =str_split(h[,2],boundary("word"))
+}
+books_split_hugo_unlist = unlist(books_split_hugo)
+
+#---------------------------
+#Deviding the whole book to 200 pieces:
+sample = list()
+g = length(books_split_hugo_unlist)
+for(i in 1:200 )
+{
+  sample[[i]] = books_split_hugo_unlist[1+ceiling((i-1)*(g/200)):ceiling((i*g/200))]
+}
+
+#---------------------------
+#Function which will find the number of positive sentiments:
+sentiments_positive <- function(i)
+{
+    
+    sample_data = as.data.frame(sample[[i]])
+    sample_data_words = sample[[i]]
+    sample_data <- sapply(sample_data,tolower)
+    
+    sample_data_words = sample_data_words %>% 
+      str_replace_all("\"","") %>% 
+      str_replace_all("[[:punct:]]","") %>% 
+      str_split(pattern = "\\s") %>% 
+      unlist() %>% 
+      table() %>% 
+      as.data.frame(stringsAsFactors = F)
+    colnames(sample_data_words) = c("word","count")
+    sample_data_words = sample_data_words %>%
+      filter(!str_to_lower(word) %in% stop_words$word) %>% 
+      filter(str_length(word)>1) %>% 
+      filter(!str_detect(word,"\\d")) %>%
+      arrange(desc(count)) %>% 
+      mutate(proper = !word %in% str_to_lower(word)) 
+      hugo = sample_data_words
+      hugo %>% 
+        mutate(is.negative = (hugo$word %in% negative_sentiments$word)) -> hugo_negative
+      hugo_negative %>% 
+        group_by(is.negative) %>% 
+        summarise(count = sum(count)) -> hugo_negative_count
+      
+      hugo %>% 
+        mutate(is.positive = (hugo$word %in% positive_sentiments$word)) -> hugo_positive
+      hugo_positive %>% 
+        group_by(is.positive) %>% 
+        summarise(count = sum(count)) -> hugo_positive_count
+      return(hugo_positive_count$count[2])
+}
+#---------------------------
+#Function which will find the number of negative sentiments:
+sentiments_negative <- function(i)
+{
+  
+  sample_data = as.data.frame(sample[[i]])
+  sample_data_words = sample[[i]]
+  sample_data <- sapply(sample_data,tolower)
+  
+  sample_data_words = sample_data_words %>% 
+    str_replace_all("\"","") %>% 
+    str_replace_all("[[:punct:]]","") %>% 
+    str_split(pattern = "\\s") %>% 
+    unlist() %>% 
+    table() %>% 
+    as.data.frame(stringsAsFactors = F)
+  colnames(sample_data_words) = c("word","count")
+  sample_data_words = sample_data_words %>%
+    filter(!str_to_lower(word) %in% stop_words$word) %>% 
+    filter(str_length(word)>1) %>% 
+    filter(!str_detect(word,"\\d")) %>%
+    arrange(desc(count)) %>% 
+    mutate(proper = !word %in% str_to_lower(word)) 
+  hugo = sample_data_words
+  hugo %>% 
+    mutate(is.negative = (hugo$word %in% negative_sentiments$word)) -> hugo_negative
+  hugo_negative %>% 
+    group_by(is.negative) %>% 
+    summarise(count = sum(count)) -> hugo_negative_count
+  
+  return(hugo_negative_count$count[2])
+
+}
+#---------------------------
+#Finding the number of Positive and Negatives:
+positive = c(1:200)
+negative = c(1:200)
+
+for (i in 1:200)
+{
+  positive[i] = sentiments_positive(i)
+  negative[i] = sentiments_negative(i)
+  
+}
+
+#---------------------------
+#Plotting the values:
+plot(negative,type="line", xlab = "Piece Number", ylab = "Frequency", main="Neagtive words")
+plot(positive, type= "line",xlab = "Piece Number", ylab = "Frequency", main ="Positive")
+
+hc <- highchart() %>% 
+  hc_add_series(name ="Negative",
+                type ="area",
+                data =negative) %>% 
+  hc_add_series(name = "Positive",
+                type = "area",
+                data = positive) %>% 
+  hc_xAxis(title = list(text = "Piece Number")) %>% 
+  hc_yAxis(title = list(text = "Frequency")) %>% 
+  hc_title(text =sprintf("Positive-Negative in Les Miserables divided in 200 pieces"))
+hc
+#---------------------------
+    
+
+```
+
+
+
+## Question 6:
+We will find the two words using the ``ngram`` package. With this package we can find every ``n`` consecutive words. 
+
+```{r}
+#HW8-Q6:
+#---------------------------
+#We will first extract the books:
+hug = gutenberg_download(48731:48735)
+
+#---------------------------
+#Now we will remove the uncessary punctuations and give a sign for the places
+#that have ", . ! @" this sign is "!!!!!" we will need this sign:
+
+hugs = hug %>%  
+  str_replace_all("\"","") %>% 
+  str_replace_all("[[:punct:]]"," \\!!!!!")
+hugs <- sapply(hugs,tolower)
+#--------------------------- 
+#Using the N-grqm package we will find the 2 word:
+ng <- ngram(hugs,n=2) #ng object
+ngram = get.phrasetable(ng)
+ngrams = as.data.frame(ngram) #making it as a data frame
+
+#--------------------------- 
+# length or ngram:
+J = length(ngrams$ngrams)
+
+#--------------------------- 
+# we will find those that have punctuations using the statment 
+# we said in the upper lines:
+check_ngram = str_extract(ngrams$ngrams,"\\!") # removing punctuations
+indexes = which(check_ngram==c("!")) # indexes of those we dont want
+
+#--------------------------- 
+# Removed indesxes:
+ngrams2 = ngram[-indexes,]
+ngrams2$ngrams = sapply(ngrams2$ngrams,tolower)
+#--------------------------- 
+# Now we will remove the stop words:
+for(k in 1:50)
+{
+  for ( i in 1:100)
+  {
+    tempe =ngrams2$ngrams[i]
+    tempe_split = str_split(tempe," ")
+    tempe_split = unlist(tempe_split)
+    if(sum(tempe_split %in% stop_words$word))
+      ngrams2 = ngrams2[-i,]
+  }
+}
+
+#----------------------------------------
+#Plotting the most frequent 30 words:
+ngrams2 = as.data.frame(ngrams2)
+
+hc_two_words <- highchart() %>% 
+  hc_add_series(name = "frequency of two words",data = ngrams2[1:30,],
+                type = "column",
+                mapping = hcaes(x = ngrams, y = freq),
+                color = "navy blue") %>% 
+  hc_xAxis(title = list(text = "Name of the Two Words"),
+           categories = ngrams2$ngrams) %>% 
+  hc_yAxis(title = list(text = "Frequency")) %>% 
+  hc_title(text ="Frequency of two words in Les Miserables")
+hc_two_words  
+#----------------------------------------
+
+```
+## Question 7:
+We use the ``ngram`` package and the result of the last question to find the words that start with ``he`` and ``she`` and with these combinationats we will find the most used verbs.
+
+```{r, message=FALSE, warning=FALSE}
+#HW8-Q7:
+#---------------------------
+#We will first extract the books:
+dickens_charles = gutenberg_download(books_list[,1])
+
+#---------------------------
+#Now we will remove the uncessary punctuations and give a sign for the places
+#that have ", . ! @" this sign is "!!!!!" we will need this sign:
+
+dickens_charles_str = dickens_charles %>%  
+  str_replace_all("\"","") %>% 
+  str_replace_all("[[:punct:]]"," \\!!!!!")
+dickens_charles_str <- sapply(dickens_charles_str,tolower)
+#--------------------------- 
+#Using the N-grqm package we will find the 2 word:
+ng <- ngram(dickens_charles_str,n=2) #ng object
+ngram = get.phrasetable(ng)
+ngrams = as.data.frame(ngram) #making it as a data frame
+
+#--------------------------- 
+# length or ngram:
+J = length(ngrams$ngrams)
+
+#--------------------------- 
+# we will find those that have punctuations using the statment 
+# we said in the upper lines:
+check_ngram = str_extract(ngrams$ngrams,"\\!") # removing punctuations
+indexes = which(check_ngram==c("!")) # indexes of those we dont want
+
+#--------------------------- 
+# Removed indesxes:
+ngrams_dickens = ngram[-indexes,]
+J2 = length(ngrams_dickens$ngrams)
+ngrams_dickens$ngrams = sapply(ngrams_dickens$ngrams,tolower)
+#--------------------------- 
+# Now we will find the words that start with he/she:
+rows_dickens = nrow(ngrams_dickens)
+index_dickens = list()
+b = 1
+for(i in 1:rows_dickens)
+{
+  tempe =ngrams_dickens$ngrams[i]
+  tempe_split = str_split(tempe," ")
+  tempe_split = unlist(tempe_split)
+  if(sum(tempe_split[1] %in% c("he","she")) )
+  {
+    index_dickens[b] = i
+    b = b+1
+  }
+}
+#--------------------------- 
+# Those that start with he or she:
+index_dickens = unlist(index_dickens)
+ngrams_dickens_he_she = ngrams_dickens[index_dickens,]
+ngrams_dickens_he_she
+
+rows_he_she = nrow(ngrams_dickens_he_she)
+for( k in 1:10)
+{
+  for ( i in 1:500)
+  {
+    tempe =ngrams_dickens_he_she$ngrams[i]
+    tempe_split = str_split(tempe," ")
+    tempe_split = unlist(tempe_split)
+    if(sum(tempe_split[2] %in% stop_words$word))
+      ngrams_dickens_he_she = ngrams_dickens_he_she[-i,]
+  }
+}
+ngrams_dickens_he_she = ngrams_dickens_he_she[-11,]
+
+#--------------------------- 
+# Plotting the verbs with he/she:
+
+hc_he_she <- highchart() %>% 
+  hc_add_series(name = "frequency of verbs",data = ngrams_dickens_he_she[1:30,],
+                type = "column",
+                mapping = hcaes(x = ngrams, y = freq),
+                color = "navy blue") %>% 
+  hc_xAxis(title = list(text = "Name of the Two Words"),
+           categories = ngrams_dickens_he_she$ngrams) %>% 
+  hc_yAxis(title = list(text = "Frequency")) %>% 
+  hc_title(text ="Frequency of verbs in Les Miserables")
+
+hc_he_she 
+#--------------------------- 
+#Now we will find the verbs:
+ngrams_dickens_he_she_new = ngrams_dickens_he_she
+verbs_rows = nrow(ngrams_dickens_he_she)
+for( i in 1:verbs_rows)
+{
+  tempe =ngrams_dickens_he_she$ngrams[i]
+  tempe_split = str_split(tempe," ")
+  tempe_split = unlist(tempe_split)
+  ngrams_dickens_he_she_new$ngrams[i] = tempe_split[2]
+  
+}
+ngrams_dickens_he_she_new = as.data.frame(ngrams_dickens_he_she_new)
+ngrams_dickens_he_she_new %>% 
+  group_by(ngrams) %>% 
+  summarise(freq = sum(freq)) %>% 
+  arrange(desc(freq))-> ngrams_dickens_he_she_new_count
+
+#--------------------------- 
+#Plotting the verbs:
+hc_he_she_new <- highchart() %>% 
+  hc_add_series(name = "frequency of verbs",data = ngrams_dickens_he_she_new_count[1:30,],
+                type = "column",
+                mapping = hcaes(x = ngrams, y = freq),
+                color = "blue") %>% 
+  hc_xAxis(title = list(text = "Name of the Verbs"),
+           categories = ngrams_dickens_he_she_new_count$ngrams) %>% 
+  hc_yAxis(title = list(text = "Frequency")) %>% 
+  hc_title(text ="Frequency of verbs in Charles Dickens works")
+
+hc_he_she_new
+
+
+```
+
+## Question 8:
+Using the ``ngram`` pacakge we will first find the ``1-gram`` and ``bigram`` of the chapters. We found the chapters by spliting the book in places that have ``CHAPTER``. We removed the contents page. We plotted for the Oliver Twist book because there will be many many plots ( more than 140 plots) for all of the books. But we will find the ``n-gram`` distribution for all the books. We could also use ``chi-square`` test but these graphs give us efficient information to.
+
+```{r  message=FALSE, warning=FALSE}
+
+#HW8-Q8:
+d = list()
+c = list()
+#---------------------------
+#Collectiing the book and cleaning it:
+Oliver_Twist = gutenberg_download(730)
+Oliver_Twist[[2]][1:117] <- " " #removing contents page
+
+Oliver_Twist_new = Oliver_Twist %>%  
+  str_replace_all("\"","") %>% 
+  str_replace_all("[[:punct:]]","") 
+chapters =str_split(Oliver_Twist_new, "CHAPTER")
+#---------------------------
+# Extracting the 1-grams for every chapter:
+r_2 =length(chapters[[2]])
+ngram_dickens = list()
+index = list()
+for (i in 2:r_2)
+{
+  k = chapters[[2]][i] %>%
+    str_to_lower() %>% 
+    str_split(pattern = "\\s") %>% 
+    unlist() %>% 
+    table() %>% 
+    as.data.frame(stringsAsFactors = F)
+  colnames(k) = c("word","count")
+  
+  k = k %>%
+    filter(!str_to_lower(word) %in% stop_words$word) %>% 
+    filter(str_length(word)>1) %>% 
+    filter(!str_detect(word,"\\d")) %>%
+    arrange(desc(count)) %>% 
+    mutate(proper = !word %in% str_to_lower(word))
+  
+  hc_chapter <- highchart() %>% 
+    hc_add_series(name = "frequency of single words",data = k[1:50,],
+                  type = "column",
+                  mapping = hcaes(x = word, y = count),
+                  color = "blue") %>% 
+    hc_xAxis(title = list(text = "Name of the Words"),
+             categories = k$word) %>% 
+    hc_yAxis(title = list(text = "Frequency")) %>% 
+    hc_title(text =sprintf("Frequency of words in Oliver Twist, Chapter %s"
+                           ,i))
+  
+  
+d[[i]] = hc_chapter
+  
+}
+
+
+#---------------------------
+#Extracting 2-grams for every chapter:
+ngram_dickens = list()
+r_2 =length(chapters[[2]])
+index = list()
+
+
+for (i in 1:r_2)
+{
+  b = 0 
+  ngram_dickens = chapters[[2]][i] %>%
+    str_to_lower()
+  ngram_dickens= get.phrasetable(ngram(ngram_dickens,n=2))
+  ngram_dickens_dataframe_2= as.data.frame(ngram_dickens)
+  
+  
+  
+  hc_chapter_2 <- highchart() %>% 
+    hc_add_series(name = "frequency of bigrams",data = ngram_dickens_dataframe_2[1:50,],
+                  type = "column",
+                  mapping = hcaes(x = ngrams, y = freq),
+                  color = "blue") %>% 
+    hc_xAxis(title = list(text = "Name of the Words"),
+             categories = ngram_dickens_dataframe_2$ngrams) %>% 
+    hc_yAxis(title = list(text = "Frequency")) %>% 
+    hc_title(text =sprintf("Frequency of bigram in Oliver Twist, Chapter %s"
+                           ,i))
+  c[[i]] = hc_chapter_2
+}
+
+
+
+
+#---------------------------
+htmltools::tagList(c)
+htmltools::tagList(d)
+ 
+
+
+```
+This was for the first part. Now will find the ``n-gram`` distribution of charles dickens books. We will use the logarithm of frequencies
+```{r message=FALSE, warning=FALSE}
+
+#------
+#ngram of charles dickens books:
+rows = nrow(books_list)
+for (i in 1:rows )
+{
+book_charles =gutenberg_download(books_list[i,1])
+
+book_charles = book_charles %>%  
+  str_replace_all("\"","") %>% 
+  str_replace_all("[[:punct:]]","\\!!!!!!")
+book_charles <- sapply(book_charles,tolower)
+
+
+
+ng <-ngram(book_charles,n=1)
+ngram_1 = get.phrasetable(ng)
+check = str_extract(ngram_1$ngrams,"\\!") 
+indexes = which(check==c("!"))
+ngram_1 = ngram_1[-indexes,]
+
+ng <-ngram(book_charles,n=2)
+ngram_2 = get.phrasetable(ng)
+check = str_extract(ngram_2$ngrams,"\\!") 
+indexes = which(check==c("!"))
+ngram_2 = ngram_2[-indexes,]
+
+
+ng <-ngram(book_charles,n=3)
+ngram_3 = get.phrasetable(ng)
+check = str_extract(ngram_3$ngrams,"\\!") 
+indexes = which(check==c("!"))
+ngram_3= ngram_3[-indexes,]
+
+
+ngram_1$index<-seq(1:nrow(ngram_1))
+ngram_2$index<-seq(1:nrow(ngram_2))
+ngram_3$index<-seq(1:nrow(ngram_3))
+
+
+uni<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_1)
+bi<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_2)
+tri<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_3)
+
+fit<-cbind(coef(uni), coef(bi), coef(tri))
+print(fit)
+
+library(ggplot2)
+o = qplot(log(ngram_1$index),
+      log(ngram_1$freq))+
+  geom_abline(slope = fit[2, 1],
+              intercept = fit[1, 1])+
+  labs(x="Log(n-gram index)", y="Log(Number of freq)",
+       title=sprintf("Double logarithmic plot of the Unigram occurrence distribution
+                                                                     of %s",books_list[i,2]))
+print(o)
+
+index<-c(seq(1:10000), sample(seq(1:nrow(ngram_2)), 1000))
+w = qplot(log(ngram_2$index), 
+      log(ngram_2$freq))+
+  geom_abline(slope = fit[2, 2],
+              intercept = fit[1, 2])+
+labs(x="Log(n-gram index)", y="Log(Number of freq)", title=sprintf("Double logarithmic plot of the bigram occurrence distribution
+                                                                     of %s",books_list[i,2]))
+
+print(w)
+
+index<-c(seq(1:10000), sample(seq(1:nrow(ngram_3)), 1000))
+c = qplot(log(ngram_3$index),
+      log(ngram_3$freq))+
+  geom_abline(slope = fit[2, 3],
+              intercept = fit[1, 3])+
+  labs(x="Log(n-gram index)", y="Log(Number of freq)", title=sprintf("Double logarithmic plot of the trigram occurrence distribution
+                                                                     of %s",books_list[i,2]))
+
+print(c)
+
+check<-head(ngram_1, n=50)
+x = qplot(check$ngrams,
+      check$freq/sum(ngram_1$freq)) + 
+  geom_bar(position = "dodge",
+           stat="identity")+coord_flip() +
+  scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                         decreasing=F)])+labs(x="Unigram name",
+                                                              y="Relative freq", title=sprintf("Unigram distribution of %s",
+                                                                                               books_list[i,2])) 
+
+print(x)
+
+check<-head(ngram_2, n=50)
+z = qplot(check$ngrams,
+      check$freq/sum(ngram_2$freq)) + 
+  geom_bar(position = "dodge",
+           stat="identity")+coord_flip() +
+  scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                             decreasing=F)])+labs(x="Unigram name",
+                                                                  y="Relative freq", title=sprintf("Bigram distribution of %s",
+                                                                  books_list[i,2])) 
+print(z)
+
+
+check<-head(ngram_3, n=50)
+q = qplot(check$ngrams,
+      check$freq/sum(ngram_3$freq)) + 
+  geom_bar(position = "dodge",
+           stat="identity")+coord_flip() +
+  scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                             decreasing=F)])+labs(x="Unigram name",
+                                                                  y="Relative freq", title=sprintf("Trigram distribution of %s",
+                                                                                                   books_list[i,2])) 
+
+print(q)
+
+
+
+
+
+
+
+
+
+
+}
+
+
+```
+
+##Question 9:
+We will do the same thing for Jane Eyre and Bronte's works.
+```{r message=FALSE, warning=FALSE}
+#HW8-q9:
+#---------------------------
+#Collectiing the book and cleaning it:
+Jane_Eyre = gutenberg_download(1260)
+Jane_Eyre[[2]][1:117] <- " " #removing contents page
+
+Jane_Eyre_new = Jane_Eyre %>%  
+  str_replace_all("\"","") %>% 
+  str_replace_all("[[:punct:]]","") 
+  
+chapters =str_split(Jane_Eyre_new, "CHAPTER")
+#---------------------------
+# Extracting the 1-grams for every chapter:
+r_2 =length(chapters[[2]])
+ngram_dickens = list()
+index = list()
+for (i in 2:r_2)
+{
+  k = chapters[[2]][i] %>%
+    str_to_lower() %>% 
+    str_split(pattern = "\\s") %>% 
+    unlist() %>% 
+    table() %>% 
+    as.data.frame(stringsAsFactors = F)
+  colnames(k) = c("word","count")
+  
+  k = k %>%
+    filter(!str_to_lower(word) %in% stop_words$word) %>% 
+    filter(str_length(word)>1) %>% 
+    filter(!str_detect(word,"\\d")) %>%
+    arrange(desc(count)) %>% 
+    mutate(proper = !word %in% str_to_lower(word))
+  
+  hc_chapter <- highchart() %>% 
+    hc_add_series(name = "frequency of single words",data = k[1:50,],
+                  type = "column",
+                  mapping = hcaes(x = word, y = count),
+                  color = "blue") %>% 
+    hc_xAxis(title = list(text = "Name of the Words"),
+             categories = k$word) %>% 
+    hc_yAxis(title = list(text = "Frequency")) %>% 
+    hc_title(text =sprintf("Frequency of words in Jane Eyre, Chapter %s"
+                           ,i))
+  
+  
+  d[[i]] = hc_chapter
+  
+}
+
+
+#---------------------------
+#Extracting 2-grams for every chapter:
+ngram_dickens = list()
+r_2 =length(chapters[[2]])
+index = list()
+
+
+for (i in 1:r_2)
+{
+  b = 0 
+  ngram_dickens = chapters[[2]][i] %>%
+    str_to_lower()
+  ngram_dickens= get.phrasetable(ngram(ngram_dickens,n=2))
+  ngram_dickens_dataframe_2= as.data.frame(ngram_dickens)
+  
+  
+  
+  hc_chapter_2 <- highchart() %>% 
+    hc_add_series(name = "frequency of bigrams",data = ngram_dickens_dataframe_2[1:50,],
+                  type = "column",
+                  mapping = hcaes(x = ngrams, y = freq),
+                  color = "blue") %>% 
+    hc_xAxis(title = list(text = "Name of the Words"),
+             categories = ngram_dickens_dataframe_2$ngrams) %>% 
+    hc_yAxis(title = list(text = "Frequency")) %>% 
+    hc_title(text =sprintf("Frequency of bigram in Jane Eyre, Chapter %s"
+                           ,i))
+  c[[i]] = hc_chapter_2
+}
+
+
+
+
+#---------------------------
+htmltools::tagList(c)
+htmltools::tagList(d)
+
+
+
+
+
+```
+```{r message=FALSE, warning=FALSE}
+#------
+#ngram of charles Bronte books:
+library(ngram)
+book_bronte = gutenberg_works(str_detect(author, "Bronte"))
+book_bronte %>% select(gutenberg_id,title) -> book_bronte
+
+for (i in 1:3 )
+{
+  
+  book_bronte_d =gutenberg_download(book_bronte[i,1])
+  
+  book_bronte_d = book_bronte_d %>%  
+    str_replace_all("\"","") %>% 
+    str_replace_all("[[:punct:]]","\\!!!!!!")
+  book_bronte_d <- sapply(book_bronte_d,tolower)
+  
+  
+  
+  ng <-ngram(book_bronte_d,n=1)
+  ngram_1 = get.phrasetable(ng)
+  check = str_extract(ngram_1$ngrams,"\\!") 
+  indexes = which(check==c("!"))
+  ngram_1 = ngram_1[-indexes,]
+  
+  ng <-ngram(book_bronte_d,n=2)
+  ngram_2 = get.phrasetable(ng)
+  check = str_extract(ngram_2$ngrams,"\\!") 
+  indexes = which(check==c("!"))
+  ngram_2 = ngram_2[-indexes,]
+  
+  
+  ng <-ngram(book_bronte_d,n=3)
+  ngram_3 = get.phrasetable(ng)
+  check = str_extract(ngram_3$ngrams,"\\!") 
+  indexes = which(check==c("!"))
+  ngram_3= ngram_3[-indexes,]
+  
+  
+  ngram_1$index<-seq(1:nrow(ngram_1))
+  ngram_2$index<-seq(1:nrow(ngram_2))
+  ngram_3$index<-seq(1:nrow(ngram_3))
+  
+  
+  uni<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_1)
+  bi<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_2)
+  tri<-glm(log(freq) ~ log(index), family="gaussian", data=ngram_3)
+  
+  fit<-cbind(coef(uni), coef(bi), coef(tri))
+  print(fit)
+  
+  library(ggplot2)
+w =  qplot(log(ngram_1$index),
+        log(ngram_1$freq))+
+    geom_abline(slope = fit[2, 1],
+                intercept = fit[1, 1])+
+    labs(x="Log(n-gram index)", y="Log(Number of freq)",
+         title=sprintf("Double logarithmic plot of the Unigram occurrence distribution
+                       of %s",book_bronte[i,2]))
+ print(w) 
+  
+z =   qplot(log(ngram_2$index), 
+        log(ngram_2$freq))+
+    geom_abline(slope = fit[2, 2],
+                intercept = fit[1, 2])+
+    labs(x="Log(n-gram index)", y="Log(Number of freq)", title=sprintf("Double logarithmic plot of the bigram occurrence distribution
+                                                                       of %s",book_bronte[i,2]))
+  
+print(z)
+
+x =  qplot(log(ngram_3$index),
+        log(ngram_3$freq))+
+    geom_abline(slope = fit[2, 3],
+                intercept = fit[1, 3])+
+    labs(x="Log(n-gram index)", y="Log(Number of freq)", title=sprintf("Double logarithmic plot of the trigram occurrence distribution
+                                                                       of %s",book_bronte[i,2]))
+print(x
+      )
+  check<-head(ngram_1, n=50)
+c=  qplot(check$ngrams,
+        check$freq/sum(ngram_1$freq)) + 
+    geom_bar(position = "dodge",
+             stat="identity")+coord_flip() +
+    scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                               decreasing=F)])+labs(x="Unigram name",
+                                                                    y="Relative freq", title=sprintf("Unigram distribution of %s",
+                                                                                                     book_bronte[i,2])) 
+
+print(c)
+  
+  check<-head(ngram_2, n=50)
+v =  qplot(check$ngrams,
+        check$freq/sum(ngram_2$freq)) + 
+    geom_bar(position = "dodge",
+             stat="identity")+coord_flip() +
+    scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                               decreasing=F)])+labs(x="Unigram name",
+                                                                    y="Relative freq", title=sprintf("Bigram distribution of %s",
+                                                                                                     book_bronte[i,2])) 
+  print(v)
+  
+  
+  check<-head(ngram_3, n=50)
+m=  qplot(check$ngrams,
+        check$freq/sum(ngram_3$freq)) + 
+    geom_bar(position = "dodge",
+             stat="identity")+coord_flip() +
+    scale_x_discrete(limits=check$ngrams[order(check$freq, 
+                                               decreasing=F)])+labs(x="Unigram name",
+                                                                    y="Relative freq", title=sprintf("Trigram distribution of %s",
+                                                                                                     book_bronte[i,2])) 
+  
+print(m)
+  
+
+  
+}
+```
+## Question 10:
+We can use the ``bigram``,``unigram`` and ``trigram`` of the works of Dickens and Bronte and use them as an independent variable. Using these values in different columns we can make a ``logistic model``, but it's been a very very long home-work and i'm way too tired for modeling this. So i may end this question with the given description of how we can make the logistic model. 
+
+
