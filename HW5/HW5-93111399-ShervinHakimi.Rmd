@@ -1,0 +1,184 @@
+---
+title: "HW5-93111399-ShervinHakimi"
+author: "Shervin Hakimi"
+date: "3/16/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+We will use the Chi Square Goodness of fit for this question.  
+We will assume that **they are all from a uniform distribution** and if the goodness of fit gives a significant p value, therefore our assumption that these companies have the same efficiency is correct.
+
+
+```{r message=FALSE}
+#HW5-q1:
+
+Prob = c(0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125)
+
+q = c(102, 300, 102, 100, 205, 105, 71 , 92)
+
+s = chisq.test(q,p=Prob)
+s
+
+```
+
+As we can see the **P-Value** is not significant.  
+
+Therfore our assumption that the companies have the same efficiency is **not correct**.  
+
+
+## Question 2
+In this question because the Classical stores and Modern stores are assumed no to be different in their own groups and that we have a small number of data.  
+Therefore we will use the **permutation test** for this question.  
+```{r message=FALSE}
+#HW5-q2:
+
+
+mydata = data.frame(score = c(50, 50, 60, 70, 75, 80, 90, 85,55, 75, 80, 90, 105, 65),
+                    type = factor(c(rep("A",8), rep("B",6))))
+
+t.test(score~type, data=mydata, var.equal=TRUE)
+
+coin::oneway_test(score~type, data=mydata, distribution="exact")
+
+
+
+```
+As we can see the **P-Value** is significant.  
+Therefore our assupmtion that these two groups aren't different **can be statistically correct**.  
+
+## Question 3
+We will use the Willcox test to check whether these groups are different or not.  
+We will check whether the **P-Value** is significant or not.  
+
+
+```{r message=FALSE}
+
+#HW5-q3:
+#using willcoxon test:
+
+mydata = data.frame(score = c(509, 517, 502, 629, 830, 911, 847, 803, 727, 853, 757, 730, 774,
+                              718, 904,517, 508, 523, 730, 821, 940, 818, 821, 842, 842, 709,
+                              688, 787, 780, 901),
+                    type = factor(c(rep("A",15), rep("B",15))))
+
+wilcox.test(score~type, data=mydata)
+
+
+
+
+
+```
+The **P-Value** is very significant.  
+Therfore our assumption that marketing hadn't any significant influence **can be statistically correct**.  
+
+## Question 4
+As we have three different colors whitin stores that are assumed are not  different  we will use the Kruskal-Wallis test.  
+We will check our null hypothesis with the pvalue.  
+```{r message=FALSE}
+#HW5-q4:
+
+mydata = data.frame(score = c(510,720,930,754,105,925,735,753,685,730,745,875,610),
+                    type = factor(c(rep("A",5), rep("B",4),rep("C",4))))
+
+kruskal.test(score ~ type, data = mydata)
+
+
+```
+The **P-Value** is significant.  
+Therefore the assumption that the colors don't have influence **can be statistically correct**.
+
+## Question 5 
+In this question we will use the friedman rank sum test because we want to test the differences in multiple months.  
+We will check our null hypothesis that these months aren't different with our resulting p-value.  
+```{r  eval = FALSE, message = FALSE}
+#HW5-q5:
+mydata = read.csv("/Users/shervin/Downloads/hw_05/data/tv.csv")
+
+friedman.test(mydata,c("March"	,"April"	,"May"	,"Jun"))
+
+
+Sample<-matrix(c(mydata$April,mydata$March,mydata$May,mydata$Jun),ncol=4)
+
+friedman.test(Sample)
+
+```
+```{r eval=FALSE}
+Friedman rank sum test
+
+data:  Sample
+Friedman chi-squared = 1.2, df = 3,
+p-value = 0.753
+
+```
+
+As we can see the **P-Value** is significant.  
+Therefore the assumption that the marketing had an effect don't have influence **can be statistically correct**.
+
+## Question 6
+We have three different features with three different groups.  
+Therefore using chi-square independence test is a good test for this dataset.  
+We will check our null hypothesis using the pvalue.  
+```{r message=FALSE}
+#HW5-q6:
+
+mydata = matrix(
+    c(151,802,753,252,603,55,603,405,408),
+    nrow = 3,
+    ncol = 3
+)
+
+rownames(mydata) <- c("Small","Medium","Large")
+colnames(mydata) <- c("Always","Sometime","Never")
+
+chisq.test(mydata)
+```
+The **P-Value** is very low.  
+Therefore our assumption that population doesn't have an influence on consumption is **not correct**.  
+
+## Question 7 
+Considering the given data and the given question on whether the random samples of the two products have different sales?  
+
+We will use the Spearman correlation test and check this assumption using the pvalue.  
+
+
+```{r message=FALSE}
+# HW5-q7
+mydata = read.csv("/Users/shervin/Downloads/hw_05/data/consumption.csv")
+
+
+cor.test( ~ A + B, 
+          data= mydata,
+          method = "spearman",
+          continuity = TRUE,
+          conf.level = 0.95)
+
+
+```
+As we can see the **P-Value** is significant.  
+Therefore our null hypothesis that the two sales are not statistically correlated **can be correct**.
+
+## Question 8 
+In this question like question 6 we will use the chi-square independence test to see whether the gender has an influence.  
+We will check the pvalue to check our null hypothesis
+```{r}
+#HW5-q8:
+
+
+mydata = matrix(
+  c(301,353,558,502,155,153),
+  nrow = 3,
+  ncol = 2
+)
+
+rownames(mydata) <- c("Price","Design","Color")
+colnames(mydata) <- c("Male","Female")
+
+chisq.test(mydata)
+```
+The **P-Value** is very low.  
+Therefore our null hypotehsis is **not correct**.
