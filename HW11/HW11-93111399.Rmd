@@ -1,0 +1,241 @@
+---
+title: "HW11-Earthquake Analysis"
+subtitle: ""
+author: "Shevin Hakimi - 93111399"
+date: "`r Sys.time()`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1:
+First we will introduce our libraries:
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(readr)
+library(highcharter)
+library(plotly)
+library(ggplot2)
+library(ROCR)
+library(grid)
+library(scales)
+library(gridExtra)
+library(tidyr)
+library(ggthemes)
+
+
+
+```
+Now we will use the ``plotly`` package:
+```{r warning=FALSE}
+earth = readRDS("/Users/shervin/Downloads/week_11/data/historical_web_data_26112015.rds")
+plot_ly(earth ,
+        x = ~earth$Longitude ,
+        y = ~earth$Latitude , 
+        z = ~earth$Depth , 
+        size = ~earth$Magnitude)
+
+
+```
+
+## Question 2:
+```{r warning=FALSE}
+disaster = read_delim("/Users/shervin/Downloads/week_11/data/disaster.txt", "\t", escape_double = FALSE, trim_ws = TRUE)
+
+disaster %>%  select(tsunami = FLAG_TSUNAMI, lat = LATITUDE, lon = LONGITUDE, name = COUNTRY, sequence =YEAR, z = EQ_MAG_ML, sequence = YEAR  ) %>% select(lat,lon,z,name,sequence) %>% na.omit()->disaster_temp 
+ 
+hcmap() %>% hc_add_series(data = disaster_temp, type = "mapbubble",minSize = 0, maxSize = 30, color = "blue")  %>% hc_plotOptions(series = list(showInLegend = FALSE))
+
+
+
+
+```
+## Question 3:
+```{r warning=FALSE}
+iran_earthquake = read_rds("/Users/shervin/Downloads/week_11/data/iran_earthquake.rds")
+iran_earthquake %>% filter(Mag>3) ->iran_earthquake_temp
+
+plot <- ggplot(data = iran_earthquake_temp, aes(x=Lat, y =Long)) +geom_point()
+plot + stat_density_2d(aes(fill = ..level..), geom = "polygon") +xlab("Longitude") + ylab("Latitude")
+
+
+#we shoud filter it again to get a batter digram:
+iran_earthquake_temp %>% filter(Lat<=45, Long<=70) -> iran_earthquake_temp_checked
+
+plot <- ggplot(data = iran_earthquake_temp_checked, aes(x=Lat, y =Long)) +geom_point()
+plot + stat_density_2d(aes(fill = ..level..), geom = "polygon") +xlab("Longitude") + ylab("Latitude")
+
+```
+## Question 4:
+```{r warning=FALSE}
+great_earthquake <- disaster %>% filter(COUNTRY == "IRAN" ,EQ_PRIMARY >= 7) #greatest eartquakes in Iran
+
+
+#We have to find the cyle of  every earthquake with a magnitude greater than 7:
+Year = as.data.frame(great_earthquake %>% select(YEAR) %>% filter(YEAR>0))
+Year_shift = c(Year[-1,1],0)
+Diff = Year_shift - Year
+Diff = Diff[-26,1] # The time between every two earthquake with magnitude greater than 7
+print(Diff)
+
+#Now we will find the exact time difference from the last earthquake:
+iran_earthquake %>% filter(Mag>=7) %>% select(OriginTime) %>% arrange(desc(OriginTime)) -> time
+
+```
+From this we can see the last great earthquake was more than two years ago and since the cycle of every earthquake is usually less than this the probability that we'll be experiencing an earthquake in the near future is high. 
+
+##  Question 5:
+```{r warning=FALSE}
+disaster %>% select(lat =LATITUDE, lon = LONGITUDE, z =TOTAL_DEATHS, name = COUNTRY ) %>% 
+             na.omit() %>%  group_by(name) %>% summarise(mean = mean(z), total = sum(z))-> disaster_average
+
+hcmap(data = disaster_average, value = "total", name = "Average total Deaths by Earthquake",
+      dataLabels = list(enabled = TRUE, format = '{point.name}')) %>% 
+  hc_title(text = 'Total Deaths of Countries by Earthquake',
+           align = 'center') %>% 
+  hc_subtitle(text = 'displayed by number of peoples', align = 'center')
+
+hcmap(data = disaster_average, value = "mean", name = "Average total Deaths by Earthquake",
+      dataLabels = list(enabled = TRUE, format = '{point.name}')) %>% 
+  hc_title(text = 'Average total Death of Countries by Earthquake',
+           align = 'center') %>% 
+  hc_subtitle(text = 'displayed by number of peoples', align = 'center')
+
+```
+
+
+## Question 6:
+We can make a ``generalised linear model (glm)`` using the given columns of ``Lattitude`` and ``Longitude``. A fair guess is to take the family of this ``glm`` to be poisson. We can check this assumption by plotting the ``density`` of the deaths:
+```{r warning=FALSE}
+disaster %>% select(lat = )
+model = glm(data = disaster, DEATHS ~ LATITUDE + LONGITUDE + FOCAL_DEPTH + EQ_PRIMARY,
+                    family = poisson(link = "log"))
+summary(model)
+disaster %>% select(DEATHS) %>% na.omit() %>% as.matrix() -> disaster_deaths
+hchart(density(disaster_deaths)) %>% 
+  hc_title(text = 'Density Distribution of death') %>% 
+  hc_xAxis(title = list(text = "Number of Deaths")) %>% 
+  hc_yAxis(title = list(text = "Probability Density"))
+```
+Which we can see is actually a good assumption.
+
+## Question 7:
+We have to make a glm prediction model and make a prediction based on this model.
+```{r warning=FALSE}
+# We first have to make the longitude and latitude a round number:
+worldwide = read.csv("/Users/shervin/Downloads/week_11/data/worldwide.csv")
+worldwide %>% filter(type=="earthquake") %>%  select(time,latitude,longitude,mag) -> worldwide_temp
+worldwide_temp %>% mutate(lat = round(latitude),
+                          lon = round(longitude)) %>%         
+                          select(time,lat,lon,mag) %>% 
+                          na.omit()-> worldwide_temp
+worldwide_temp$time = as.Date(worldwide_temp$time)
+worldwide_temp %>% mutate(Month = (12*as.integer(format(time,"%y"))+as.integer(format(time,"%m")))) ->worldwide_temp
+
+#We define Pish larze as a earthquake with magnitude 4 or less:
+worldwide_temp %>% group_by(lat,lon,Month) %>% summarise(max_e = max(mag), count = n(), average= sum(mag)/count) %>% 
+                                               mutate(Larzeh = as.integer(max_e>4)) %>% na.omit() ->worldwide_temp_larzeh
+worldwide_temp_larzeh$Larzeh = as.factor(worldwide_temp_larzeh$Larzeh)
+
+test = worldwide_temp_larzeh %>% sample_frac(0.2)
+train = anti_join(worldwide_temp_larzeh,test)
+
+model = glm(data = train,
+             formula = Larzeh ~ count,
+             family = binomial(link = 'logit'))
+predict = predict(model, data = test,
+                        type = "response")
+
+```
+
+
+## Question 8:
+We can either user the correlation tests to first check wheter these two are correlated or not. If they were correlated with a high degree we have to check whether we fall into the ``correlation is causation`` trap. Therefore we have to use another test to check this assumption. We can use ``chi-square`` as a test which can check whether these two come from the same distrubtion, if this test also agrees, we may intrept that they affect each other.
+
+```{r warning=FALSE}
+worldwide = read.csv("/Users/shervin/Downloads/week_11/data/worldwide.csv")
+
+worldwide %>% select(depth , mag) %>% na.omit() -> worldwide.selected
+q = cor.test(worldwide.selected$depth, worldwide.selected$mag,
+         alternative = c("two.sided"), method = c("spearman"))
+q
+
+chisq.test(worldwide$mag , worldwide$depth)
+
+```
+The first test confirms that there exists a week correlation between these two ( because p-value lower than our cut-off). So we can conclude that these two are not much related.
+
+## Question 9: 
+We will first find the average number of earthquakes after that to see whether HAARP was real or not We need to make a ``t-test`` ,make a null-hypothesis  and check whether this assumption can be rejected or not.
+The saying goes that the HAARP was intended to activate japanese earthquakes, so we can make our null-hypothesis that the after HAARP and before HAARP the number of earthquakes are not different.
+```{r warning=FALSE}
+worldwide = read_csv("/Users/shervin/Downloads/week_11/data/worldwide.csv")
+worldwide %>% filter(type =="earthquake") %>% select(longitude,latitude,time) %>% 
+              mutate(year = as.numeric(format(time, "%Y"))) %>%  group_by(longitude,latitude,year) %>% summarise(count = n()) -> worldwide_earthquakes_count
+
+print(worldwide_earthquakes_count)
+
+worldwide %>% filter(type =="earthquake") %>% select(place,time) %>% 
+              mutate(year = as.numeric(format(time, "%Y"))) %>%  group_by(place,year) %>% summarise(count = n()) -> worldwide_earthquakes_count_place
+
+print(worldwide_earthquakes_count_place)
+
+#Haarp:
+disaster %>% filter( COUNTRY =="JAPAN", YEAR >=1950) %>% select(YEAR,DEATHS) %>% arrange(desc(YEAR))  %>% na.omit() -> disaster_japan
+
+Haarp_before <- disaster_japan %>% filter( YEAR >1950 , YEAR <1993) %>%  select(DEATHS) %>% as.matrix()
+Haarp_after <- disaster_japan %>% filter(YEAR > 1993) %>% select(DEATHS) %>% as.matrix()
+t.test(Haarp_before,Haarp_after)
+
+```
+The ``t-test`` rejects the assumption that HAARP had anything to do with the total deaths due to earthquake in japan therefore we can say that HAARP is not really true.
+
+
+## Question 10:
+1) What is the sum and average of the damage of earthquake in every country?
+```{r warning=FALSE}
+disaster %>% select(lat =LATITUDE, lon = LONGITUDE, z =DAMAGE_MILLIONS_DOLLARS, name = COUNTRY ) %>% 
+             na.omit() %>%  group_by(name) %>% summarise(mean = mean(as.integer(z)), total = sum(as.integer(z))) %>% select(name,mean,total)-> disaster_average
+
+hcmap(data = disaster_average, value = "total", name = "Average total Deaths by Earthquake",
+      dataLabels = list(enabled = TRUE, format = '{point.name}')) %>% 
+  hc_title(text = 'Total Deaths of Countries by Earthquake',
+           align = 'center') %>% 
+  hc_subtitle(text = 'displayed by number of peoples', align = 'center')
+
+hcmap(data = disaster_average, value = "mean", name = "Average total Deaths by Earthquake",
+      dataLabels = list(enabled = TRUE, format = '{point.name}')) %>% 
+  hc_title(text = 'Total Deaths of Countries by Earthquake',
+           align = 'center') %>% 
+  hc_subtitle(text = 'displayed by number of peoples', align = 'center')
+```
+
+2) Points on earth which have the most number of earthquaks
+```{r warning=FALSE}
+worldwide %>% filter(type=="earthquake") %>%  select(time,latitude,longitude,mag) ->worldwide_temp
+worldwide_temp %>% mutate(lat = round(latitude),
+                          lon = round(longitude)) ->worldwide_temp
+
+ worldwide_temp %>%  group_by(lat,lon) %>%
+                     summarise(z = n()) %>% 
+                     arrange(desc(z))-> worldwide_temp
+
+hcmap() %>% hc_add_series(data = worldwide_temp[1:20,], type = "mapbubble",minSize = 0, maxSize = 30, color = "blue")  %>% hc_plotOptions(series = list(showInLegend = FALSE))
+```
+3) Is depth of earthquak corrleated to magnitude?
+```{r warning=FALSE}
+worldwide %>% filter(type=="earthquake") %>%  select(time,latitude,longitude,mag) ->worldwide_temp
+worldwide %>% mutate( deep = as.integer(log(depth)>2), high_mag = as.integer(mag>5)) %>% select(deep,high_mag) -> worldwide_depth
+t.test(worldwide_depth$deep~worldwide_depth$high_mag)
+```
+We see that our null-hypothesis is wrong and depth affects magnitude we can find the correlation with spearman:
+```{r}
+cor.test(worldwide_depth$deep,worldwide_depth$high_mag,
+         alternative = c("two.sided"), method = c("spearman"))
+```
+Which states that these two are corrleated.
